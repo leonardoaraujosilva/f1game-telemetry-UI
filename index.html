@@ -179,7 +179,7 @@
             flex: 1;
             padding-left: 4px;
             font-size: 13px;
-            font-weight: 800;
+            font-weight: 600;
             letter-spacing: 0.5px;
         }
 
@@ -651,6 +651,7 @@
         let sessionBestLap = Infinity;
         let sessionBestCarIdx = -1;
         let lastLapNums = {};
+        let carBestLap = {}; // per-car best lap time in ms
 
         const trackNames = {
             0: { name: 'MELBOURNE', country: 'AUSTRALIA', code: 'au' },
@@ -682,11 +683,18 @@
             41: { name: 'ZANDVOORT R', country: 'NETHERLANDS', code: 'nl' }
         };
 
+        // Team mapping based on common F1 UDP Team IDs
+        // Mercedes=0, Ferrari=1, RedBull=2, Williams=3, AstonMartin=4, Alpine=5, RB/AlphaTauri=6, Haas=7, McLaren=8, Sauber/Alfa=9
+        // Some games use different IDs (e.g., McLaren=104, etc). We will map the known ones.
         const teamColors = {
             0: 'var(--t-mercedes)', 1: 'var(--t-ferrari)', 2: 'var(--t-redbull)',
             3: 'var(--t-williams)', 4: 'var(--t-aston)', 5: 'var(--t-alpine)',
             6: 'var(--t-rb)', 7: 'var(--t-haas)', 8: 'var(--t-mclaren)',
-            9: 'var(--t-sauber)'
+            9: 'var(--t-sauber)', 104: 'var(--t-mclaren)',
+            185: 'var(--t-mercedes)', 186: 'var(--t-ferrari)', 187: 'var(--t-redbull)',
+            188: 'var(--t-williams)', 189: 'var(--t-aston)', 190: 'var(--t-alpine)',
+            191: 'var(--t-rb)', 192: 'var(--t-haas)', 193: 'var(--t-mclaren)',
+            194: 'var(--t-sauber)'
         };
 
         const ersModes = ['NONE', 'MEDIUM', 'HOTLAP', 'OVERTAKE'];
@@ -709,11 +717,103 @@
             6: 'resources/racing bulls.png',
             7: 'resources/haas.png',
             8: 'resources/mclaren.png',
-            9: 'resources/sauber.png'
+            9: 'resources/sauber.png',
+            104: 'resources/mclaren.png',
+            185: 'resources/mercedes.png',
+            186: 'resources/ferrari.png',
+            187: 'resources/redbull.png',
+            188: 'resources/williams.png',
+            189: 'resources/aston martin.png',
+            190: 'resources/alpine.png',
+            191: 'resources/racing bulls.png',
+            192: 'resources/haas.png',
+            193: 'resources/mclaren.png',
+            194: 'resources/sauber.png'
         };
 
-        const lbModes = ['INTERVAL', 'TYRES', 'ERS'];
-        let lbMode = 0;
+        // ─── LEADERBOARD SCHEDULER ─────────────────────────────────────────
+        // Each entry: { mode, duration (ms), weight }
+        // weight = how many slots it gets in the rotation playlist.
+        // Higher weight = appears more often.
+        // Modes: INTERVAL_PLAYER, INTERVAL_LEADER, LAST_LAP, BEST_LAP, TYRES, ERS
+        const LB_SCHEDULE = [
+            { mode: 'INTERVAL_PLAYER', duration: 14000, weight: 5 },
+            { mode: 'INTERVAL_LEADER', duration: 11000, weight: 4 },
+            { mode: 'LAST_LAP',        duration:  6000, weight: 2 },
+            { mode: 'BEST_LAP',        duration:  7000, weight: 1 },
+            { mode: 'TYRES',           duration:  5000, weight: 1 },
+            { mode: 'ERS',             duration:  4000, weight: 1 },
+        ];
+
+        // Build weighted playlist: repeat each entry by its weight, then shuffle
+        function buildPlaylist() {
+            const pool = [];
+            LB_SCHEDULE.forEach(entry => {
+                for (let i = 0; i < entry.weight; i++) pool.push(entry);
+            });
+            // Fisher-Yates shuffle
+            for (let i = pool.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [pool[i], pool[j]] = [pool[j], pool[i]];
+            }
+            return pool;
+        }
+
+        let lbPlaylist = buildPlaylist();
+        let lbPlayIdx  = 0;
+        let lbCurrent  = lbPlaylist[0];
+        let lbModeTimer = null;
+        let lbInterrupted = false; // true when a lap-completion override is active
+
+        function advanceLbMode(forced) {
+            if (lbInterrupted && !forced) return; // don't advance during override
+
+            const leaderLap = (state.lapData && state.lapData.length > 0) 
+                ? Math.max(...state.lapData.map(l => l.m_currentLapNum || 0)) 
+                : 0;
+
+            let found = false;
+            let attempts = 0;
+            while (!found && attempts < lbPlaylist.length) {
+                lbPlayIdx = (lbPlayIdx + 1) % lbPlaylist.length;
+                if (lbPlayIdx === 0) lbPlaylist = buildPlaylist(); // reshuffle when playlist loops
+                lbCurrent = lbPlaylist[lbPlayIdx];
+                
+                // Validate mode
+                if (lbCurrent.mode === 'LAST_LAP' && leaderLap < 2) { attempts++; continue; }
+                if (lbCurrent.mode === 'BEST_LAP' && leaderLap < 3) { attempts++; continue; }
+                if (lbCurrent.mode === 'TYRES' && leaderLap < 2) { attempts++; continue; }
+                found = true;
+            }
+
+            document.getElementById('lb-mode').innerText = lbCurrent.mode.replace('_', ' ');
+            renderLeaderboard();
+            clearTimeout(lbModeTimer);
+            lbModeTimer = setTimeout(() => advanceLbMode(false), lbCurrent.duration);
+        }
+
+        // Trigger: when any car completes a new lap, briefly show LAST_LAP
+        function triggerLastLap() {
+            if (lbInterrupted) return; // already showing a triggered mode
+            const leaderLap = (state.lapData && state.lapData.length > 0) 
+                ? Math.max(...state.lapData.map(l => l.m_currentLapNum || 0)) 
+                : 0;
+            if (leaderLap < 2) return;
+
+            lbInterrupted = true;
+            clearTimeout(lbModeTimer);
+            lbCurrent = { mode: 'LAST_LAP', duration: 6000 };
+            document.getElementById('lb-mode').innerText = 'LAST LAP';
+            renderLeaderboard();
+            lbModeTimer = setTimeout(() => {
+                lbInterrupted = false;
+                advanceLbMode(true);
+            }, 6000);
+        }
+
+        // Start the scheduler
+        document.getElementById('lb-mode').innerText = lbCurrent.mode.replace('_', ' ');
+        lbModeTimer = setTimeout(() => advanceLbMode(false), lbCurrent.duration);
 
         function extractShortName(fullName) {
             if (!fullName) return 'UNK';
@@ -729,12 +829,6 @@
             const r = ms % 1000;
             return `${m}:${String(s).padStart(2, '0')}.${String(r).padStart(3, '0')}`;
         }
-
-        setInterval(() => {
-            lbMode = (lbMode + 1) % lbModes.length;
-            document.getElementById('lb-mode').innerText = lbModes[lbMode];
-            renderLeaderboard();
-        }, 6000);
 
         connect();
 
@@ -761,7 +855,32 @@
             }
 
             if (msg.type === 'LAP_DATA') {
-                state.lapData = msg.data.m_lapData;
+                // Detect any new lap completions to trigger LAST_LAP display
+                const prev = state.lapData;
+                const next = msg.data.m_lapData;
+                if (prev && prev.length) {
+                    for (let i = 0; i < next.length; i++) {
+                        if (next[i] && prev[i] &&
+                            next[i].m_currentLapNum > (prev[i].m_currentLapNum || 0) &&
+                            next[i].m_lastLapTimeInMS > 0) {
+
+                            // Update per-car best lap
+                            const lt = next[i].m_lastLapTimeInMS;
+                            if (!carBestLap[i] || lt < carBestLap[i]) {
+                                carBestLap[i] = lt;
+                            }
+                            // Update session best
+                            if (lt < sessionBestLap) {
+                                sessionBestLap    = lt;
+                                sessionBestCarIdx = i;
+                            }
+
+                            triggerLastLap();
+                            break;
+                        }
+                    }
+                }
+                state.lapData = next;
             }
 
             if (msg.type === 'CAR_STATUS') {
@@ -922,41 +1041,98 @@
                 const lap = row.lap;
                 const isPlayer = row.i === pIdx;
 
-                // Gap calculation
-                let gapText = '-';
+                // ── Value per mode ───────────────────────────────────────
+                const mode = lbCurrent.mode;
+                let gapText  = '-';
                 let gapClass = 'lb-val';
 
-                if (lap.m_carPosition === 1) {
-                    gapText = '-';
-                } else {
-                    const lapDiff = leaderLap - lap.m_currentLapNum;
-                    if (lapDiff > 0) {
-                        gapText = `+${lapDiff} LAP${lapDiff > 1 ? 'S' : ''}`;
-                        gapClass = 'lb-val lapped';
-                    } else if (lap.m_deltaToCarInFrontInMS > 0) {
-                        gapText = '+' + (lap.m_deltaToCarInFrontInMS / 1000).toFixed(3);
-                    }
-                }
+                const lapDiff = leaderLap - lap.m_currentLapNum;
+                const lapped  = lapDiff > 0;
 
-                // Override with purple best lap time for fastest driver
-                if (row.i === sessionBestCarIdx && sessionBestLap < Infinity) {
-                    gapText = formatMS(sessionBestLap);
-                    gapClass = 'lb-val fastest';
+                if (mode === 'INTERVAL_PLAYER') {
+                    // Gap referenced to the player's car
+                    if (isPlayer) {
+                        gapText = '◆';
+                    } else {
+                        const playerLap = state.lapData[pIdx];
+                        if (playerLap) {
+                            const posDiff = lap.m_carPosition - playerLap.m_carPosition;
+                            if (lapped) {
+                                gapText  = `+${lapDiff} LAP${lapDiff > 1 ? 'S' : ''}`;
+                                gapClass = 'lb-val lapped';
+                            } else {
+                                const gapMs = lap.m_deltaToRaceLeaderInMS - playerLap.m_deltaToRaceLeaderInMS;
+                                if (gapMs > 0) {
+                                    gapText = '+' + (gapMs / 1000).toFixed(3);
+                                } else if (gapMs < 0) {
+                                    gapText = '-' + (Math.abs(gapMs) / 1000).toFixed(3);
+                                } else {
+                                    gapText = '-';
+                                }
+                            }
+                        }
+                    }
+
+                } else if (mode === 'INTERVAL_LEADER') {
+                    // Gap to race leader
+                    if (lap.m_carPosition === 1) {
+                        gapText = '-';
+                    } else if (lapped) {
+                        gapText  = `+${lapDiff} LAP${lapDiff > 1 ? 'S' : ''}`;
+                        gapClass = 'lb-val lapped';
+                    } else {
+                        gapText = '+' + (lap.m_deltaToRaceLeaderInMS > 0
+                            ? (lap.m_deltaToRaceLeaderInMS / 1000).toFixed(3)
+                            : (lap.m_deltaToCarInFrontInMS / 1000).toFixed(3));
+                    }
+
+                } else if (mode === 'LAST_LAP') {
+                    gapText  = formatMS(lap.m_lastLapTimeInMS);
+                    gapClass = 'lb-val';
+                    // purple if it's the session best lap
+                    if (row.i === sessionBestCarIdx && sessionBestLap < Infinity
+                        && lap.m_lastLapTimeInMS === sessionBestLap) {
+                        gapClass = 'lb-val fastest';
+                    }
+
+                } else if (mode === 'BEST_LAP') {
+                    const best = carBestLap[row.i];
+                    gapText  = formatMS(best);
+                    gapClass = row.i === sessionBestCarIdx ? 'lb-val fastest' : 'lb-val';
+
+                } else if (mode === 'TYRES') {
+                    if (s) {
+                        const tyre = tyreMap[s.m_visualTyreCompound];
+                        gapText  = tyre ? `${tyre.short} ${s.m_tyresAgeLaps}L` : '--';
+                    }
+
+                } else if (mode === 'ERS') {
+                    if (s) {
+                        const pct = Math.round((s.m_ersStoreEnergy / 4000000) * 100);
+                        gapText = pct + '%';
+                    }
                 }
 
                 // Tyre icon
                 let tyreHtml = '';
                 if (s) {
                     const tyre = tyreMap[s.m_visualTyreCompound];
-                    if (tyre) tyreHtml = `<span class="lb-tyre ${tyre.cls}">${tyre.short}</span>`;
+                    if (tyre && tyre.img) {
+                        tyreHtml = `<img src="${tyre.img}" style="width:16px;height:16px;object-fit:contain;flex-shrink:0;">`;
+                    } else if (tyre) {
+                        tyreHtml = `<span class="lb-tyre ${tyre.cls}">${tyre.short}</span>`;
+                    }
                 }
 
                 // Team logo
-                const logoSrc = (p && p.m_teamId !== undefined) ? (teamLogos[p.m_teamId] || '') : '';
+                let tId = p ? p.m_teamId : undefined;
+                let logoSrc = (tId !== undefined) ? (teamLogos[tId] || '') : '';
+                
                 const teamHtml = logoSrc
-                    ? `<img src="${logoSrc}" style="width:14px;height:14px;object-fit:contain;flex-shrink:0;opacity:0.9;">`
-                    : `<div class="lb-team-bar" style="background:${(p && teamColors[p.m_teamId]) || '#fff'}"></div>`;
-                const shortName = isPlayer ? 'YOU' : extractShortName(p?.m_name);
+                    ? `<img src="${encodeURI(logoSrc)}" style="width:14px;height:14px;object-fit:contain;flex-shrink:0;opacity:0.9;">`
+                    : `<div class="lb-team-bar" style="background:${(tId !== undefined && teamColors[tId]) ? teamColors[tId] : '#fff'}; width: ${tId !== undefined && !teamColors[tId] ? '20px' : '3px'}; display:flex; justify-content:center; align-items:center; font-size:8px; color:#000;">${tId !== undefined && !teamColors[tId] ? tId : ''}</div>`;
+                
+                const shortName = extractShortName(p?.m_name);
 
                 return `
                 <div class="lb-row ${isPlayer ? 'player' : ''}">
