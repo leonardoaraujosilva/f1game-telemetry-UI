@@ -137,6 +137,7 @@ function parseCarStatus(buffer) {
             m_fuelInTank: buffer.readFloatLE(offset + 5),
             m_fuelCapacity: buffer.readFloatLE(offset + 9),
             m_drsAllowed: buffer.readUInt8(offset + 22),
+            m_drsActivationDistance: buffer.readUInt16LE(offset + 23),
             m_visualTyreCompound: buffer.readUInt8(offset + 26),
             m_tyresAgeLaps: buffer.readUInt8(offset + 27),
             m_ersStoreEnergy: buffer.readFloatLE(offset + 37),

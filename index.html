@@ -99,7 +99,7 @@
         .section {
             border-right: 1px solid var(--border-grey);
             position: relative;
-            padding: 45px 15px 15px 15px;
+            padding: 35px 15px 10px 15px;
             display: flex;
             flex-direction: column;
             gap: 10px;
@@ -107,7 +107,7 @@
 
         .section-label {
             position: absolute;
-            top: 15px;
+            top: 12px;
             left: 50%;
             transform: translateX(-50%);
             font-size: 12px;
@@ -138,7 +138,7 @@
         .lb-row {
             display: flex;
             align-items: center;
-            height: 22px;
+            height: 21px;
             font-size: 12px;
             font-weight: 700;
             margin-bottom: 1px;
@@ -473,7 +473,7 @@
             display: flex;
             flex-direction: column;
             gap: 1px;
-            margin-top: 5px;
+            margin-top: 2px;
         }
 
         .lb-row {
@@ -653,6 +653,7 @@
             participants: [],
             lapData: [],
             carStatus: [],
+            carTelemetry: [],
             session: {},
             playerIdx: 0
         };
@@ -744,7 +745,8 @@
         const teamScale = {
             7: 1.6, 120: 1.6, 192: 1.6, // Haas
             6: 1.6, 119: 1.6, 191: 1.6, // Racing Bulls
-            9: 1.6, 121: 1.6, 194: 1.6  // Sauber
+            9: 1.6, 121: 1.6, 194: 1.6, // Sauber
+            8: 1.4, 104: 1.4, 193: 1.4  // McLaren
         };
 
         // ─── LEADERBOARD SCHEDULER ─────────────────────────────────────────
@@ -916,6 +918,7 @@
             }
 
             if (msg.type === 'TELEMETRY') {
+                state.carTelemetry = msg.data.m_carTelemetryData;
                 updateTelemetry(msg.data.m_carTelemetryData[state.playerIdx]);
             }
 
@@ -925,6 +928,9 @@
         function refreshAll() {
             updateRaceControl();
             renderLeaderboard();
+            if (state.carTelemetry && state.carTelemetry[state.playerIdx]) {
+                updateTelemetry(state.carTelemetry[state.playerIdx]);
+            }
         }
 
         function updateTelemetry(car) {
@@ -1002,9 +1008,22 @@
                 ((status.m_fuelInTank / status.m_fuelCapacity) * 100) + '%';
 
             const drsEl = document.getElementById('r-drs');
-            if (status.m_drsAllowed) {
+            const telemetry = state.carTelemetry ? state.carTelemetry[pIdx] : null;
+
+            drsEl.style.fontSize = '22px'; // Default size
+
+            if (telemetry && telemetry.m_drs === 1) {
                 drsEl.innerText = 'ON';
                 drsEl.style.color = '#00ff00';
+                drsEl.style.fontSize = '22px';
+            } else if (status.m_drsAllowed) {
+                drsEl.innerText = 'AVAILABLE';
+                drsEl.style.color = 'var(--purple-fastest)';
+                drsEl.style.fontSize = '13px';
+            } else if (status.m_drsActivationDistance > 0) {
+                drsEl.innerText = 'DRS ZONE';
+                drsEl.style.color = '#ffd700';
+                drsEl.style.fontSize = '13px';
             } else {
                 drsEl.innerText = 'OFF';
                 drsEl.style.color = '#555';
@@ -1048,15 +1067,15 @@
             const leaderLap = allValid[0]?.lap.m_currentLapNum || 0;
 
             let displayRows;
-            if (playerPos > 0 && playerPos <= 9) {
-                displayRows = allValid.slice(0, Math.max(playerPos + 2, 9));
-            } else if (playerPos > 9) {
+            if (playerPos > 0 && playerPos <= 8) {
+                displayRows = allValid.slice(0, 10);
+            } else if (playerPos >= 9) {
                 const top3 = allValid.slice(0, 3);
                 const around = allValid.filter(x =>
-                    x.lap.m_carPosition >= playerPos - 2 &&
-                    x.lap.m_carPosition <= playerPos + 2
+                    x.lap.m_carPosition >= playerPos - 3 &&
+                    x.lap.m_carPosition <= playerPos + 3
                 );
-                displayRows = [...top3, { divider: true }, ...around];
+                displayRows = [...top3, ...around];
             } else {
                 displayRows = allValid.slice(0, 10);
             }
@@ -1074,8 +1093,14 @@
                 let gapText = '-';
                 let gapClass = 'lb-val';
 
-                const lapDiff = leaderLap - lap.m_currentLapNum;
-                const lapped = lapDiff > 0;
+                const leader = state.lapData.find(l => l.m_carPosition === 1) || lap;
+                const trackLen = state.session.m_trackLength || 1;
+
+                // Real track position gap to leader:
+                const distToLeader = leader.m_totalDistance - lap.m_totalDistance;
+                // If difference is greater than track length, they are lapped
+                const lappedLaps = Math.floor(distToLeader / trackLen);
+                const lapped = lappedLaps > 0;
 
                 if (mode === 'INTERVAL_PLAYER') {
                     // Gap referenced to the player's car
@@ -1084,9 +1109,15 @@
                     } else {
                         const playerLap = state.lapData[pIdx];
                         if (playerLap) {
-                            const posDiff = lap.m_carPosition - playerLap.m_carPosition;
-                            if (lapped) {
-                                gapText = `+${lapDiff} LAP${lapDiff > 1 ? 'S' : ''}`;
+                            const distToPlayer = playerLap.m_totalDistance - lap.m_totalDistance;
+                            const lappedToPlayer = Math.floor(distToPlayer / trackLen);
+                            const lappedByPlayer = Math.floor(-distToPlayer / trackLen);
+
+                            if (lappedToPlayer > 0) {
+                                gapText = `+${lappedToPlayer} LAP${lappedToPlayer > 1 ? 'S' : ''}`;
+                                gapClass = 'lb-val lapped';
+                            } else if (lappedByPlayer > 0) {
+                                gapText = `-${lappedByPlayer} LAP${lappedByPlayer > 1 ? 'S' : ''}`;
                                 gapClass = 'lb-val lapped';
                             } else {
                                 const gapMs = lap.m_deltaToRaceLeaderInMS - playerLap.m_deltaToRaceLeaderInMS;
@@ -1106,7 +1137,7 @@
                     if (lap.m_carPosition === 1) {
                         gapText = '-';
                     } else if (lapped) {
-                        gapText = `+${lapDiff} LAP${lapDiff > 1 ? 'S' : ''}`;
+                        gapText = `+${lappedLaps} LAP${lappedLaps > 1 ? 'S' : ''}`;
                         gapClass = 'lb-val lapped';
                     } else {
                         gapText = '+' + (lap.m_deltaToRaceLeaderInMS > 0
