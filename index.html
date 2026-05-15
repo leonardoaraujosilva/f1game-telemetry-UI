@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700;900&display=swap');
+
+        :root {
+            --f1-red: #e10600;
+            --bg-dark: rgba(10, 10, 10, 0.98);
+            --border-grey: #2a2a2a;
+            --widget-bg: rgba(255, 255, 255, 0.02);
+            --text-main: #ffffff;
+            --text-dim: #999;
+        }
+
+        body {
+            margin: 0;
+            width: 1920px;
+            height: 1080px;
+            background: transparent;
+            font-family: 'Titillium Web', sans-serif;
+            color: var(--text-main);
+            text-transform: uppercase;
+            overflow: hidden;
+        }
+
+        .f1-top-tab {
+            position: absolute;
+            bottom: 270px;
+            left: 20px;
+            height: 55px;
+            width: 380px;
+            background: #111;
+            clip-path: polygon(0 0, 85% 0, 100% 100%, 0 100%);
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            border-top: 4px solid var(--f1-red);
+            z-index: 20;
+        }
+
+        .f1-top-tab .logo {
+            font-weight: 900;
+            font-size: 38px;
+            color: var(--f1-red);
+            font-style: italic;
+            margin-right: 25px;
+        }
+
+        .f1-top-tab .session {
+            font-weight: 700;
+            font-size: 18px;
+            margin-right: 15px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 10px;
+            background: #555;
+        }
+
+        .status-online {
+            background: #00ff00;
+            box-shadow: 0 0 8px #00ff00;
+        }
+
+        .hud-main-bar {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            height: 270px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-grey);
+            border-radius: 8px;
+            display: grid;
+            grid-template-columns: 380px 1fr 340px 420px;
+            overflow: hidden;
+            z-index: 10;
+        }
+
+        .section {
+            border-right: 1px solid var(--border-grey);
+            position: relative;
+            padding: 45px 15px 15px 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .section-label {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            font-weight: 800;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .section-label span {
+            color: var(--f1-red);
+        }
+
+        .widget-box {
+            background: var(--widget-bg);
+            border: 1px solid #222;
+            border-radius: 4px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* LEADERBOARD */
+        .lb-row {
+            display: flex;
+            align-items: center;
+            height: 21px;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 1px;
+            width: 100%;
+        }
+
+        .lb-row.player {
+            background: linear-gradient(90deg, rgba(225, 6, 0, 0.5) 0%, transparent 100%);
+            border-left: 3px solid var(--f1-red);
+        }
+
+        .lb-pos {
+            width: 25px;
+            text-align: center;
+        }
+
+        .lb-name {
+            flex: 1;
+            padding-left: 10px;
+        }
+
+        .lb-val {
+            width: 90px;
+            text-align: right;
+            font-family: monospace;
+            color: var(--f1-red);
+        }
+
+        /* RACE CONTROL GRID */
+        .rc-grid {
+            display: grid;
+            grid-template-rows: 1fr 1fr;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .rc-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .w-label {
+            font-size: 9px;
+            color: var(--text-dim);
+            margin-bottom: 2px;
+        }
+
+        .w-val {
+            font-size: 22px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .w-sub {
+            font-size: 10px;
+            color: #666;
+            font-weight: 700;
+            margin-top: 2px;
+        }
+
+        .fuel-bar {
+            width: 50px;
+            height: 4px;
+            background: #222;
+            border-radius: 2px;
+            margin-top: 4px;
+            overflow: hidden;
+        }
+
+        .fuel-fill {
+            height: 100%;
+            background: #ffd700;
+            transition: width 0.3s;
+        }
+
+        /* TELEMETRY & TYRES */
+        .tel-stats {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-bottom: 5px;
+        }
+
+        .tel-unit .v {
+            font-size: 40px;
+            font-weight: 900;
+            line-height: 1;
+            text-align: center;
+        }
+
+        .tel-unit .l {
+            font-size: 10px;
+            color: var(--text-dim);
+            text-align: center;
+        }
+
+        .t-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 10px;
+            font-weight: 800;
+            margin-bottom: 2px;
+        }
+
+        .t-bar-bg {
+            flex: 1;
+            height: 5px;
+            background: #1a1a1a;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .t-bar-fill {
+            height: 100%;
+            width: 0%;
+            transition: width 0.05s linear;
+        }
+
+        .tyre-mini-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            width: 100%;
+            margin-top: 5px;
+        }
+
+        .tyre-mini-box {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #333;
+            padding: 2px 5px;
+            border-radius: 2px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .tyre-mini-box.hot {
+            color: var(--f1-red);
+            border-color: var(--f1-red);
+        }
+
+        /* CAMERA 16:9 */
+        .camera {
+            border-right: none;
+            padding: 45px 15px 15px 15px;
+        }
+
+        .cam-container {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #000;
+            border: 1px solid #222;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cam-label {
+            position: absolute;
+            bottom: 8px;
+            left: 10px;
+            font-size: 11px;
+            font-weight: 900;
+            color: #444;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .rec-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--f1-red);
+            border-radius: 50%;
+        }
+
+        .t-ico {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            margin-right: 5px;
+        }
+
+        .t-S {
+            border-color: #ff2a2a;
+            color: #ff2a2a;
+        }
+
+        .t-M {
+            border-color: #ffd700;
+            color: #ffd700;
+        }
+
+        .t-H {
+            border-color: #fff;
+            color: #fff;
+        }
+
+        #lb-list {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            margin-top: 5px;
+        }
+
+        .lb-row {
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 2px solid transparent;
+            padding: 0 6px;
+            border-radius: 2px;
+        }
+
+        .lb-row.player {
+            border-left: 3px solid #e10600;
+            background: linear-gradient(90deg, rgba(225, 6, 0, 0.35), transparent);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="f1-top-tab">
+        <div id="status-dot" class="status-dot"></div>
+        <div class="logo">F1</div>
+        <div class="session" id="top-session">LIVE</div>
+        <div style="font-size: 14px; font-weight: 800; color: var(--text-dim);">LAP <span id="top-lap"
+                style="color:#fff">--/--</span></div>
+    </div>
+
+    <div class="hud-main-bar">
+        <div class="section">
+            <div class="section-label"><span>//</span> <span id="lb-mode">INTERVAL</span> <span>//</span></div>
+            <div id="lb-list"></div>
+        </div>
+
+        <div class="section">
+            <div class="section-label"><span>//</span> RACE CONTROL <span>//</span></div>
+            <div class="rc-grid">
+                <div class="rc-row">
+                    <div class="widget-box">
+                        <div class="w-label">VOLTA</div>
+                        <div class="w-val" id="r-lap">--</div>
+                    </div>
+                    <div class="widget-box">
+                        <div class="w-label">POSIÇÃO</div>
+                        <div class="w-val" id="r-pos" style="color:var(--f1-red)">--</div>
+                    </div>
+                    <div class="widget-box">
+                        <div class="w-label">GAP</div>
+                        <div class="w-val" id="r-gap">--</div>
+                        <div class="w-sub" id="r-gap-who">FRONT</div>
+                    </div>
+                    <div class="widget-box">
+                        <div class="w-label">CIRCUITO</div>
+                        <div class="w-val" style="font-size:12px" id="r-track">N/A</div>
+                        <div class="w-sub" id="r-country">TRACK</div>
+                    </div>
+                </div>
+                <div class="rc-row">
+                    <div class="widget-box">
+                        <div class="w-label">PNEU</div>
+                        <div class="w-val" id="r-tyre">--</div>
+                        <div class="w-sub" id="r-tyre-age">-- LAPS</div>
+                    </div>
+                    <div class="widget-box">
+                        <div class="w-label">COMBUSTÍVEL</div>
+                        <div class="w-val" id="r-fuel">--</div>
+                        <div class="fuel-bar">
+                            <div id="f-fill" class="fuel-fill"></div>
+                        </div>
+                    </div>
+                    <div class="widget-box">
+                        <div class="w-label">DRS</div>
+                        <div class="w-val" id="r-drs">OFF</div>
+                    </div>
+                    <div class="widget-box">
+                        <div class="w-label">PISTA</div>
+                        <div class="w-val" id="r-temp">--°C</div>
+                        <div class="w-sub">TEMPERATURA</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-label"><span>//</span> TELEMETRIA <span>//</span></div>
+            <div class="tel-stats">
+                <div class="tel-unit">
+                    <div class="v" id="t-gear">N</div>
+                    <div class="l">GEAR</div>
+                </div>
+                <div class="tel-unit">
+                    <div class="v" id="t-speed">0</div>
+                    <div class="l">KM/H</div>
+                </div>
+            </div>
+            <div class="t-bar-row"><span>ERS</span>
+                <div class="t-bar-bg">
+                    <div id="b-ers" class="t-bar-fill" style="background:#ffd700"></div>
+                </div>
+            </div>
+            <div class="t-bar-row"><span>THR</span>
+                <div class="t-bar-bg">
+                    <div id="b-thr" class="t-bar-fill" style="background:#00ff00"></div>
+                </div>
+            </div>
+            <div class="t-bar-row"><span>BRK</span>
+                <div class="t-bar-bg">
+                    <div id="b-brk" class="t-bar-fill" style="background:var(--f1-red)"></div>
+                </div>
+            </div>
+
+            <div class="tyre-mini-grid">
+                <div class="tyre-mini-box" id="box-fl"><span>FL</span><span id="v-fl">--</span></div>
+                <div class="tyre-mini-box" id="box-fr"><span>FR</span><span id="v-fr">--</span></div>
+                <div class="tyre-mini-box" id="box-rl"><span>RL</span><span id="v-rl">--</span></div>
+                <div class="tyre-mini-box" id="box-rr"><span>RR</span><span id="v-rr">--</span></div>
+            </div>
+        </div>
+
+        <div class="section camera">
+            <div class="section-label"><span>//</span> ONBOARD <span>//</span></div>
+            <div class="cam-container">
+                <img src="https://logodownload.org/wp-content/uploads/2018/11/formula-1-logo-7.png"
+                    style="width:80px; opacity:0.05">
+                <div class="cam-label">LIVE FEED <div class="rec-dot"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ws = new WebSocket('ws://localhost:8080');
+
+        let state = {
+            participants: [],
+            lapData: [],
+            carStatus: [],
+            session: {},
+            playerIdx: 0
+        };
+
+        const trackNames = {
+            0: 'MELBOURNE',
+            1: 'PAUL RICARD',
+            2: 'SHANGHAI',
+            3: 'SAKHIR',
+            4: 'CATALUNYA',
+            5: 'MONACO',
+            6: 'MONTREAL',
+            7: 'SILVERSTONE',
+            8: 'HOCKENHEIM',
+            9: 'HUNGARORING',
+            10: 'SPA',
+            11: 'MONZA',
+            12: 'SINGAPORE',
+            13: 'SUZUKA',
+            14: 'ABU DHABI',
+            15: 'TEXAS',
+            16: 'BRAZIL',
+            17: 'AUSTRIA',
+            18: 'SOCHI',
+            19: 'MEXICO',
+            20: 'BAKU',
+            21: 'SAKHIR OUTER',
+            22: 'IMOLA',
+            23: 'PORTIMAO',
+            24: 'JEDDAH',
+            25: 'MIAMI',
+            26: 'LAS VEGAS',
+            27: 'QATAR'
+        };
+
+        const tyreMap = {
+            16: { short: 'S', cls: 't-S' },
+            17: { short: 'M', cls: 't-M' },
+            18: { short: 'H', cls: 't-H' },
+            7: { short: 'I', cls: 't-M' },
+            8: { short: 'W', cls: 't-H' }
+        };
+
+        const lbModes = ['INTERVAL', 'TYRES', 'ERS'];
+        let lbMode = 0;
+
+        setInterval(() => {
+            lbMode = (lbMode + 1) % lbModes.length;
+            document.getElementById('lb-mode').innerText = lbModes[lbMode];
+            renderLeaderboard();
+        }, 6000);
+
+        ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+
+            if (msg.playerIdx !== undefined) {
+                state.playerIdx = msg.playerIdx;
+            }
+
+            if (msg.type === 'FULL_STATE') {
+                state = msg.data;
+                state.playerIdx = msg.playerIdx;
+                refreshAll();
+                return;
+            }
+
+            if (msg.type === 'SESSION') {
+                state.session = msg.data;
+            }
+
+            if (msg.type === 'PARTICIPANTS') {
+                state.participants = msg.data.m_participants;
+            }
+
+            if (msg.type === 'LAP_DATA') {
+                state.lapData = msg.data.m_lapData;
+            }
+
+            if (msg.type === 'CAR_STATUS') {
+                state.carStatus = msg.data.m_carStatusData;
+            }
+
+            if (msg.type === 'TELEMETRY') {
+                updateTelemetry(msg.data.m_carTelemetryData[state.playerIdx]);
+            }
+
+            refreshAll();
+        };
+
+        function refreshAll() {
+            updateRaceControl();
+            renderLeaderboard();
+        }
+
+        function updateTelemetry(car) {
+            if (!car) return;
+
+            document.getElementById('t-speed').innerText = car.m_speed;
+            document.getElementById('t-gear').innerText = car.m_gear === 0 ? 'N' : car.m_gear;
+
+            document.getElementById('b-thr').style.width = (car.m_throttle * 100) + '%';
+            document.getElementById('b-brk').style.width = (car.m_brake * 100) + '%';
+
+            const ersStatus = state.carStatus[state.playerIdx];
+            if (ersStatus) {
+                const ers = Math.min(100, (ersStatus.m_ersStoreEnergy / 4000000) * 100);
+                document.getElementById('b-ers').style.width = ers + '%';
+            }
+
+            const t = car.m_tyresSurfaceTemperature;
+            // RL RR FL FR
+            document.getElementById('v-rl').innerText = t[0] + '°';
+            document.getElementById('v-rr').innerText = t[1] + '°';
+            document.getElementById('v-fl').innerText = t[2] + '°';
+            document.getElementById('v-fr').innerText = t[3] + '°';
+        }
+
+        function updateRaceControl() {
+            const pIdx = state.playerIdx;
+            const lap = state.lapData[pIdx];
+            const status = state.carStatus[pIdx];
+            const session = state.session;
+
+            if (!lap || !status) return;
+
+            document.getElementById('r-lap').innerText = lap.m_currentLapNum;
+            document.getElementById('top-lap').innerText = `${lap.m_currentLapNum}/${session.m_totalLaps || '--'}`;
+
+            document.getElementById('r-pos').innerText = 'P' + lap.m_carPosition;
+            document.getElementById('r-temp').innerText = session.m_trackTemperature + '°C';
+
+            document.getElementById('r-track').innerText =
+                trackNames[session.m_trackId] || 'UNKNOWN';
+
+            document.getElementById('r-country').innerText = 'TRACK';
+
+            document.getElementById('r-fuel').innerText = status.m_fuelInTank.toFixed(1) + ' KG';
+            document.getElementById('f-fill').style.width =
+                ((status.m_fuelInTank / status.m_fuelCapacity) * 100) + '%';
+
+            document.getElementById('r-drs').innerText =
+                status.m_drsAllowed ? 'READY' : 'OFF';
+
+            const tyre = tyreMap[status.m_visualTyreCompound];
+            if (tyre) {
+                document.getElementById('r-tyre').innerText = tyre.short;
+            }
+
+            document.getElementById('r-tyre-age').innerText =
+                status.m_tyresAgeLaps + ' LAPS';
+
+            const ahead = state.lapData.find(x => x.m_carPosition === lap.m_carPosition - 1);
+            if (ahead) {
+                const gap = Math.abs(ahead.m_totalDistance - lap.m_totalDistance) / 75;
+                document.getElementById('r-gap').innerText = gap.toFixed(1);
+            }
+        }
+
+        function renderLeaderboard() {
+            const list = document.getElementById('lb-list');
+
+            if (!state.lapData.length) return;
+
+            const sorted = state.lapData
+                .map((l, i) => ({ i, lap: l }))
+                .filter(x => x.lap.m_carPosition > 0)
+                .sort((a, b) => a.lap.m_carPosition - b.lap.m_carPosition)
+                .slice(0, 10);
+
+            list.innerHTML = sorted.map(row => {
+                const p = state.participants[row.i];
+                const s = state.carStatus[row.i];
+                const lap = row.lap;
+
+                let value = '--';
+
+                if (lbModes[lbMode] === 'INTERVAL') {
+                    value = lap.m_totalDistance.toFixed(0) + 'M';
+                }
+
+                if (lbModes[lbMode] === 'TYRES' && s) {
+                    const tyre = tyreMap[s.m_visualTyreCompound];
+                    if (tyre) {
+                        value = `<span class="t-ico ${tyre.cls}">${tyre.short}</span> ${s.m_tyresAgeLaps}L`;
+                    }
+                }
+
+                if (lbModes[lbMode] === 'ERS' && s) {
+                    value = Math.round((s.m_ersStoreEnergy / 4000000) * 100) + '%';
+                }
+
+                return `
+                <div class="lb-row ${row.i === state.playerIdx ? 'player' : ''}">
+                    <div class="lb-pos">${lap.m_carPosition}</div>
+                    <div class="lb-name">${p?.m_name || 'DRIVER'}</div>
+                    <div class="lb-val">${value}</div>
+                </div>
+            `;
+            }).join('');
+        }
+    </script>
+</body>
+
+</html>
