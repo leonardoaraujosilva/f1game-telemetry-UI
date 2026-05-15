@@ -66,6 +66,8 @@ function parseLapData(buffer) {
         cars.push({
             m_lastLapTimeInMS: buffer.readUInt32LE(offset + 0),
             m_currentLapTimeInMS: buffer.readUInt32LE(offset + 4),
+            m_deltaToCarInFrontInMS: buffer.readUInt16LE(offset + 14) + (buffer.readUInt8(offset + 16) * 60000),
+            m_deltaToRaceLeaderInMS: buffer.readUInt16LE(offset + 17) + (buffer.readUInt8(offset + 19) * 60000),
             m_totalDistance: buffer.readFloatLE(offset + 24),
             m_carPosition: buffer.readUInt8(offset + 32),
             m_currentLapNum: buffer.readUInt8(offset + 33),
@@ -111,10 +113,10 @@ function parseTelemetry(buffer) {
             m_engineRPM: buffer.readUInt16LE(offset + 16),
             m_drs: buffer.readUInt8(offset + 18),
             m_tyresSurfaceTemperature: [
-                buffer.readUInt8(offset + 30), // RL
-                buffer.readUInt8(offset + 31), // RR
-                buffer.readUInt8(offset + 32), // FL
-                buffer.readUInt8(offset + 33)  // FR
+                buffer.readUInt8(offset + 34), // RL
+                buffer.readUInt8(offset + 35), // RR
+                buffer.readUInt8(offset + 36), // FL
+                buffer.readUInt8(offset + 37)  // FR
             ]
         });
 
@@ -136,7 +138,9 @@ function parseCarStatus(buffer) {
             m_drsAllowed: buffer.readUInt8(offset + 22),
             m_visualTyreCompound: buffer.readUInt8(offset + 26),
             m_tyresAgeLaps: buffer.readUInt8(offset + 27),
-            m_ersStoreEnergy: buffer.readFloatLE(offset + 37)
+            m_ersStoreEnergy: buffer.readFloatLE(offset + 37),
+            m_ersDeployMode: buffer.readUInt8(offset + 41),
+            m_ersDeployedThisLap: buffer.readFloatLE(offset + 50)
         });
 
         offset += CAR_SIZE;

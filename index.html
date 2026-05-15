@@ -433,9 +433,14 @@
                     <div class="l">KM/H</div>
                 </div>
             </div>
-            <div class="t-bar-row"><span>ERS</span>
-                <div class="t-bar-bg">
+            <div class="t-bar-row">
+                <span>ERS</span>
+                <span id="ers-mode" style="color:var(--f1-red); margin-left: 5px; font-size: 8px;">NONE</span>
+                <div class="t-bar-bg" style="flex: 0.5; margin-left: 5px;">
                     <div id="b-ers" class="t-bar-fill" style="background:#ffd700"></div>
+                </div>
+                <div class="t-bar-bg" style="flex: 0.5; margin-left: 5px;">
+                    <div id="b-ers-lap" class="t-bar-fill" style="background:#ffaa00"></div>
                 </div>
             </div>
             <div class="t-bar-row"><span>THR</span>
@@ -579,8 +584,14 @@
 
             const ersStatus = state.carStatus[state.playerIdx];
             if (ersStatus) {
-                const ers = Math.min(100, (ersStatus.m_ersStoreEnergy / 4000000) * 100);
+                const ers = Math.max(0, Math.min(100, (ersStatus.m_ersStoreEnergy / 4000000) * 100));
                 document.getElementById('b-ers').style.width = ers + '%';
+
+                const ersLap = Math.max(0, 100 - (ersStatus.m_ersDeployedThisLap / 4000000) * 100);
+                document.getElementById('b-ers-lap').style.width = ersLap + '%';
+
+                const modes = ['NONE', 'MEDIUM', 'HOTLAP', 'OVERTAKE'];
+                document.getElementById('ers-mode').innerText = modes[ersStatus.m_ersDeployMode] || 'NONE';
             }
 
             const t = car.m_tyresSurfaceTemperature;
@@ -625,10 +636,10 @@
             document.getElementById('r-tyre-age').innerText =
                 status.m_tyresAgeLaps + ' LAPS';
 
-            const ahead = state.lapData.find(x => x.m_carPosition === lap.m_carPosition - 1);
-            if (ahead) {
-                const gap = Math.abs(ahead.m_totalDistance - lap.m_totalDistance) / 75;
-                document.getElementById('r-gap').innerText = gap.toFixed(1);
+            if (lap.m_carPosition === 1) {
+                document.getElementById('r-gap').innerText = 'LEAD';
+            } else if (lap.m_deltaToCarInFrontInMS !== undefined) {
+                document.getElementById('r-gap').innerText = '+' + (lap.m_deltaToCarInFrontInMS / 1000).toFixed(1);
             }
         }
 
@@ -651,7 +662,13 @@
                 let value = '--';
 
                 if (lbModes[lbMode] === 'INTERVAL') {
-                    value = lap.m_totalDistance.toFixed(0) + 'M';
+                    if (lap.m_carPosition === 1) {
+                        value = 'LEADER';
+                    } else if (lap.m_deltaToCarInFrontInMS !== undefined && lap.m_deltaToCarInFrontInMS > 0) {
+                        value = '+' + (lap.m_deltaToCarInFrontInMS / 1000).toFixed(3);
+                    } else {
+                        value = '---';
+                    }
                 }
 
                 if (lbModes[lbMode] === 'TYRES' && s) {
