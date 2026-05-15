@@ -51,9 +51,9 @@ function parseSession(buffer) {
         m_airTemperature: buffer.readInt8(31),
         m_totalLaps: buffer.readUInt8(32),
         m_trackLength: buffer.readUInt16LE(33),
-        m_trackId: buffer.readInt8(35),
-        m_sessionType: buffer.readUInt8(36),
-        m_gamePaused: buffer.readUInt8(41)
+        m_sessionType: buffer.readUInt8(35),
+        m_trackId: buffer.readInt8(36),
+        m_gamePaused: buffer.readUInt8(43)
     };
 }
 
@@ -66,10 +66,10 @@ function parseLapData(buffer) {
         cars.push({
             m_lastLapTimeInMS: buffer.readUInt32LE(offset + 0),
             m_currentLapTimeInMS: buffer.readUInt32LE(offset + 4),
-            m_totalDistance: buffer.readFloatLE(offset + 23),
-            m_carPosition: buffer.readUInt8(offset + 42),
-            m_currentLapNum: buffer.readUInt8(offset + 40),
-            m_resultStatus: buffer.readUInt8(offset + 50)
+            m_totalDistance: buffer.readFloatLE(offset + 24),
+            m_carPosition: buffer.readUInt8(offset + 32),
+            m_currentLapNum: buffer.readUInt8(offset + 33),
+            m_resultStatus: buffer.readUInt8(offset + 45)
         });
 
         offset += CAR_SIZE;
@@ -111,10 +111,10 @@ function parseTelemetry(buffer) {
             m_engineRPM: buffer.readUInt16LE(offset + 16),
             m_drs: buffer.readUInt8(offset + 18),
             m_tyresSurfaceTemperature: [
-                buffer.readUInt8(offset + 27), // RL
-                buffer.readUInt8(offset + 28), // RR
-                buffer.readUInt8(offset + 29), // FL
-                buffer.readUInt8(offset + 30)  // FR
+                buffer.readUInt8(offset + 30), // RL
+                buffer.readUInt8(offset + 31), // RR
+                buffer.readUInt8(offset + 32), // FL
+                buffer.readUInt8(offset + 33)  // FR
             ]
         });
 
@@ -133,10 +133,10 @@ function parseCarStatus(buffer) {
         status.push({
             m_fuelInTank: buffer.readFloatLE(offset + 5),
             m_fuelCapacity: buffer.readFloatLE(offset + 9),
-            m_drsAllowed: buffer.readUInt8(offset + 23),
+            m_drsAllowed: buffer.readUInt8(offset + 22),
             m_visualTyreCompound: buffer.readUInt8(offset + 26),
             m_tyresAgeLaps: buffer.readUInt8(offset + 27),
-            m_ersStoreEnergy: buffer.readFloatLE(offset + 32)
+            m_ersStoreEnergy: buffer.readFloatLE(offset + 37)
         });
 
         offset += CAR_SIZE;
