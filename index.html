@@ -175,6 +175,15 @@
             flex-shrink: 0;
         }
 
+        .lb-team-logo {
+            width: 24px;
+            height: 20px;
+            object-fit: contain;
+            flex-shrink: 0;
+            opacity: 1;
+            align-self: center;
+        }
+
         .lb-name {
             flex: 1;
             padding-left: 4px;
@@ -731,6 +740,13 @@
             194: 'resources/sauber.png'
         };
 
+        // Escala customizada para corrigir logos muito pequenos (base 1.2)
+        const teamScale = {
+            7: 1.6, 120: 1.6, 192: 1.6, // Haas
+            6: 1.6, 119: 1.6, 191: 1.6, // Racing Bulls
+            9: 1.6, 121: 1.6, 194: 1.6  // Sauber
+        };
+
         // ─── LEADERBOARD SCHEDULER ─────────────────────────────────────────
         // Each entry: { mode, duration (ms), weight }
         // weight = how many slots it gets in the rotation playlist.
@@ -739,10 +755,10 @@
         const LB_SCHEDULE = [
             { mode: 'INTERVAL_PLAYER', duration: 14000, weight: 5 },
             { mode: 'INTERVAL_LEADER', duration: 11000, weight: 4 },
-            { mode: 'LAST_LAP',        duration:  6000, weight: 2 },
-            { mode: 'BEST_LAP',        duration:  7000, weight: 1 },
-            { mode: 'TYRES',           duration:  5000, weight: 1 },
-            { mode: 'ERS',             duration:  4000, weight: 1 },
+            { mode: 'LAST_LAP', duration: 6000, weight: 2 },
+            { mode: 'BEST_LAP', duration: 7000, weight: 1 },
+            { mode: 'TYRES', duration: 5000, weight: 1 },
+            { mode: 'ERS', duration: 4000, weight: 1 },
         ];
 
         // Build weighted playlist: repeat each entry by its weight, then shuffle
@@ -760,17 +776,29 @@
         }
 
         let lbPlaylist = buildPlaylist();
-        let lbPlayIdx  = 0;
-        let lbCurrent  = lbPlaylist[0];
+        let lbPlayIdx = 0;
+        let lbCurrent = lbPlaylist[0];
         let lbModeTimer = null;
         let lbInterrupted = false; // true when a lap-completion override is active
 
         function advanceLbMode(forced) {
             if (lbInterrupted && !forced) return; // don't advance during override
 
-            const leaderLap = (state.lapData && state.lapData.length > 0) 
-                ? Math.max(...state.lapData.map(l => l.m_currentLapNum || 0)) 
+            const leaderLap = (state.lapData && state.lapData.length > 0)
+                ? Math.max(...state.lapData.map(l => l.m_currentLapNum || 0))
                 : 0;
+
+            let anyonePitted = false;
+            if (state.lapData && state.carStatus) {
+                for (let i = 0; i < state.lapData.length; i++) {
+                    const l = state.lapData[i];
+                    const s = state.carStatus[i];
+                    if (l && s && l.m_currentLapNum > 1 && s.m_tyresAgeLaps < l.m_currentLapNum - 1) {
+                        anyonePitted = true;
+                        break;
+                    }
+                }
+            }
 
             let found = false;
             let attempts = 0;
@@ -778,11 +806,11 @@
                 lbPlayIdx = (lbPlayIdx + 1) % lbPlaylist.length;
                 if (lbPlayIdx === 0) lbPlaylist = buildPlaylist(); // reshuffle when playlist loops
                 lbCurrent = lbPlaylist[lbPlayIdx];
-                
+
                 // Validate mode
                 if (lbCurrent.mode === 'LAST_LAP' && leaderLap < 2) { attempts++; continue; }
                 if (lbCurrent.mode === 'BEST_LAP' && leaderLap < 3) { attempts++; continue; }
-                if (lbCurrent.mode === 'TYRES' && leaderLap < 2) { attempts++; continue; }
+                if (lbCurrent.mode === 'TYRES' && !anyonePitted) { attempts++; continue; }
                 found = true;
             }
 
@@ -795,8 +823,8 @@
         // Trigger: when any car completes a new lap, briefly show LAST_LAP
         function triggerLastLap() {
             if (lbInterrupted) return; // already showing a triggered mode
-            const leaderLap = (state.lapData && state.lapData.length > 0) 
-                ? Math.max(...state.lapData.map(l => l.m_currentLapNum || 0)) 
+            const leaderLap = (state.lapData && state.lapData.length > 0)
+                ? Math.max(...state.lapData.map(l => l.m_currentLapNum || 0))
                 : 0;
             if (leaderLap < 2) return;
 
@@ -871,7 +899,7 @@
                             }
                             // Update session best
                             if (lt < sessionBestLap) {
-                                sessionBestLap    = lt;
+                                sessionBestLap = lt;
                                 sessionBestCarIdx = i;
                             }
 
@@ -1043,11 +1071,11 @@
 
                 // ── Value per mode ───────────────────────────────────────
                 const mode = lbCurrent.mode;
-                let gapText  = '-';
+                let gapText = '-';
                 let gapClass = 'lb-val';
 
                 const lapDiff = leaderLap - lap.m_currentLapNum;
-                const lapped  = lapDiff > 0;
+                const lapped = lapDiff > 0;
 
                 if (mode === 'INTERVAL_PLAYER') {
                     // Gap referenced to the player's car
@@ -1058,7 +1086,7 @@
                         if (playerLap) {
                             const posDiff = lap.m_carPosition - playerLap.m_carPosition;
                             if (lapped) {
-                                gapText  = `+${lapDiff} LAP${lapDiff > 1 ? 'S' : ''}`;
+                                gapText = `+${lapDiff} LAP${lapDiff > 1 ? 'S' : ''}`;
                                 gapClass = 'lb-val lapped';
                             } else {
                                 const gapMs = lap.m_deltaToRaceLeaderInMS - playerLap.m_deltaToRaceLeaderInMS;
@@ -1078,7 +1106,7 @@
                     if (lap.m_carPosition === 1) {
                         gapText = '-';
                     } else if (lapped) {
-                        gapText  = `+${lapDiff} LAP${lapDiff > 1 ? 'S' : ''}`;
+                        gapText = `+${lapDiff} LAP${lapDiff > 1 ? 'S' : ''}`;
                         gapClass = 'lb-val lapped';
                     } else {
                         gapText = '+' + (lap.m_deltaToRaceLeaderInMS > 0
@@ -1087,7 +1115,7 @@
                     }
 
                 } else if (mode === 'LAST_LAP') {
-                    gapText  = formatMS(lap.m_lastLapTimeInMS);
+                    gapText = formatMS(lap.m_lastLapTimeInMS);
                     gapClass = 'lb-val';
                     // purple if it's the session best lap
                     if (row.i === sessionBestCarIdx && sessionBestLap < Infinity
@@ -1097,13 +1125,13 @@
 
                 } else if (mode === 'BEST_LAP') {
                     const best = carBestLap[row.i];
-                    gapText  = formatMS(best);
+                    gapText = formatMS(best);
                     gapClass = row.i === sessionBestCarIdx ? 'lb-val fastest' : 'lb-val';
 
                 } else if (mode === 'TYRES') {
                     if (s) {
                         const tyre = tyreMap[s.m_visualTyreCompound];
-                        gapText  = tyre ? `${tyre.short} ${s.m_tyresAgeLaps}L` : '--';
+                        gapText = tyre ? `${tyre.short} ${s.m_tyresAgeLaps}L` : '--';
                     }
 
                 } else if (mode === 'ERS') {
@@ -1127,11 +1155,12 @@
                 // Team logo
                 let tId = p ? p.m_teamId : undefined;
                 let logoSrc = (tId !== undefined) ? (teamLogos[tId] || '') : '';
-                
+                let tScale = (tId !== undefined && teamScale[tId]) ? teamScale[tId] : 1.2;
+
                 const teamHtml = logoSrc
-                    ? `<img src="${encodeURI(logoSrc)}" style="width:14px;height:14px;object-fit:contain;flex-shrink:0;opacity:0.9;">`
+                    ? `<img src="${encodeURI(logoSrc)}" class="lb-team-logo" style="transform: scale(${tScale});">`
                     : `<div class="lb-team-bar" style="background:${(tId !== undefined && teamColors[tId]) ? teamColors[tId] : '#fff'}; width: ${tId !== undefined && !teamColors[tId] ? '20px' : '3px'}; display:flex; justify-content:center; align-items:center; font-size:8px; color:#000;">${tId !== undefined && !teamColors[tId] ? tId : ''}</div>`;
-                
+
                 const shortName = extractShortName(p?.m_name);
 
                 return `

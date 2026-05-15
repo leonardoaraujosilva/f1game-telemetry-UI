@@ -89,6 +89,7 @@ function parseParticipants(buffer) {
         const nameBuffer = buffer.slice(offset + 7, offset + 39);
 
         participants.push({
+            m_teamId: buffer.readUInt8(offset + 3),
             m_name: nameBuffer.toString('utf8').replace(/\0/g, '').trim() || `CAR ${i + 1}`
         });
 
