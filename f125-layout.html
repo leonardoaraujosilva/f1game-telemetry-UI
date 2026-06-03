@@ -849,7 +849,8 @@
             32: { name: 'LOSAIL', country: 'QATAR', code: 'qa' },
             39: { name: 'SILVERSTONE R', country: 'UK', code: 'gb' },
             40: { name: 'AUSTRIA R', country: 'AUSTRIA', code: 'at' },
-            41: { name: 'ZANDVOORT R', country: 'NETHERLANDS', code: 'nl' }
+            41: { name: 'ZANDVOORT R', country: 'NETHERLANDS', code: 'nl' },
+            42: { name: 'MADRING', country: 'SPAIN', code: 'es' }
         };
 
         // Team mapping based on common F1 UDP Team IDs
@@ -917,18 +918,38 @@
             31: [16, 17, 18],  // Las Vegas: S=C5, M=C4, H=C3
             32: [18, 19, 20],  // Losail: S=C3, M=C2, H=C1
             14: [16, 17, 18],  // Abu Dhabi: S=C5, M=C4, H=C3
+            42: [17, 18, 19],  // Madrid: S=C4, M=C3, H=C2
         };
 
         // Fallback when we don't know the compound
         const defaultTempRange = { min: 75, max: 105, name: '??' };
 
-        function getTyreTemp(temp, actualCompound) {
+        function getTyreColor(temp, actualCompound) {
+            const defaultTempRange = { min: 75, max: 105, name: `C${actualCompound}` };
             const range = tyreTempRanges[actualCompound] || defaultTempRange;
-            if (temp < range.min) return 't-cold';
-            if (temp > range.max) return 't-superhot';
             const mid = (range.min + range.max) / 2;
-            if (temp > mid + (range.max - mid) * 0.5) return 't-hot';
-            return 't-ideal';
+            const size = (range.max - range.min) / 2;
+
+            if (temp <= range.min - size) return 'rgb(0, 136, 255)'; // Blue
+            if (temp >= range.max + size) return 'rgb(255, 0, 0)'; // Red
+
+            if (temp < mid) {
+                const ratio = Math.max(0, Math.min(1, (temp - (range.min - size)) / (mid - (range.min - size))));
+                const g = Math.round(136 + (255 - 136) * ratio);
+                const b = Math.round(255 - 255 * ratio);
+                return `rgb(0, ${g}, ${b})`;
+            } else {
+                if (temp <= range.max) {
+                    const ratio = Math.max(0, Math.min(1, (temp - mid) / (range.max - mid)));
+                    const r = Math.round(255 * ratio);
+                    const g = Math.round(255 - (255 - 215) * ratio);
+                    return `rgb(${r}, ${g}, 0)`;
+                } else {
+                    const ratio = Math.max(0, Math.min(1, (temp - range.max) / size));
+                    const g = Math.round(215 - 215 * ratio);
+                    return `rgb(255, ${g}, 0)`;
+                }
+            }
         }
 
         const teamLogos = {
@@ -952,15 +973,39 @@
             191: 'resources/racing bulls.png',
             192: 'resources/haas.png',
             193: 'resources/mclaren.png',
-            194: 'resources/sauber.png'
+            194: 'resources/sauber.png',
+            220: 'resources/mercedes.png',
+            221: 'resources/ferrari.png',
+            222: 'resources/redbull.png',
+            223: 'resources/williams.png',
+            224: 'resources/aston martin.png',
+            225: 'resources/alpine.png',
+            226: 'resources/racing bulls.png',
+            227: 'resources/haas.png',
+            228: 'resources/mclaren.png',
+            229: 'resources/audi.png',
+            230: 'resources/cadillac.png',
+            231: 'resources/sauber.png',
+            476: 'resources/mercedes.png',
+            477: 'resources/ferrari.png',
+            478: 'resources/redbull.png',
+            479: 'resources/williams.png',
+            480: 'resources/aston martin.png',
+            481: 'resources/alpine.png',
+            482: 'resources/racing bulls.png',
+            483: 'resources/haas.png',
+            484: 'resources/mclaren.png',
+            485: 'resources/audi.png',
+            486: 'resources/cadillac.png'
         };
 
         // Escala customizada para corrigir logos muito pequenos (base 1.2)
         const teamScale = {
-            7: 1.6, 120: 1.6, 192: 1.6, // Haas
-            6: 1.6, 119: 1.6, 191: 1.6, // Racing Bulls
-            9: 1.6, 121: 1.6, 194: 1.6, // Sauber
-            8: 1.4, 104: 1.4, 193: 1.4  // McLaren
+            7: 1.6, 120: 1.6, 192: 1.6, 227: 1.6, 483: 1.6, // Haas
+            6: 1.6, 119: 1.6, 191: 1.6, 226: 1.6, 482: 1.6, // Racing Bulls
+            9: 1.6, 121: 1.6, 194: 1.6, 231: 1.6, // Sauber
+            8: 1.4, 104: 1.4, 193: 1.4, 228: 1.4, 484: 1.4, // McLaren
+            229: 1.4, 230: 1.4, 485: 1.4, 486: 1.4 // Audi, Cadillac
         };
 
         // ─── LEADERBOARD SCHEDULER ─────────────────────────────────────────
@@ -1239,7 +1284,7 @@
                 }
             }
 
-            const t = car.m_tyresSurfaceTemperature;
+            const t = car.m_tyresInnerTemperature;
             // RL RR FL FR
             document.getElementById('v-rl').innerText = t[0];
             document.getElementById('v-rr').innerText = t[1];
@@ -1269,7 +1314,9 @@
                 const dot = document.getElementById('dot-' + w);
                 if (!dot) return;
                 dot.classList.remove('t-cold', 't-ideal', 't-hot', 't-superhot');
-                dot.classList.add(getTyreTemp(temp, actualCompound));
+                const color = getTyreColor(temp, actualCompound);
+                dot.style.background = color;
+                dot.style.boxShadow = `0 0 6px ${color}`;
             });
             
             const wear = state.carDamage && state.carDamage[state.playerIdx] ? state.carDamage[state.playerIdx].m_tyresWear : [0,0,0,0];

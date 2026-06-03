@@ -245,6 +245,7 @@ udp.on('message', (msg) => {
 
         let payload = null;
         const format = header.packetFormat;
+        state.format = format; // Store the current format in state for UI layout selection
 
         switch (header.packetId) {
             case 1:
