@@ -611,7 +611,6 @@
                         <div class="w-label">MODO RETA</div>
                         <div class="w-val" id="r-drs" style="color:#555">OFF</div>
                         <div class="w-sub" id="r-ot" style="margin-top:4px; font-size:9px; font-weight:800; color:#999; text-align:center; background: rgba(255, 255, 255, 0.08); border-radius: 2px; padding: 2px 6px; display: inline-block;">OVERTAKE: OFF</div>
-                        <div id="debug-drs" style="font-size:8px; color:#ffaa00; margin-top:2px;"></div>
                     </div>
                 </div>
                 <!-- Row 2: DELTA | GAP FRONT | GAP BEHIND -->
@@ -1224,10 +1223,6 @@
                     state.carTelemetry2 = msg.data.m_carTelemetry2Data;
                     break;
                 case 'DEBUG_INFO':
-                    const deEl = document.getElementById('debug-drs');
-                    if (deEl) {
-                        deEl.innerText = `F:${msg.data.format} P:${msg.data.packets.join(',')}`;
-                    }
                     return; // Do not refreshAll for debug info
             }
 
@@ -1417,11 +1412,6 @@
                 drsEl.style.color = '#555';
             }
             
-            const debugEl = document.getElementById('debug-drs');
-            if (debugEl) {
-                debugEl.innerText = '';
-            }
-
             let isOvertake = false;
             if (telemetry2 && telemetry2.m_overtakeActive === 1) {
                 isOvertake = true;
