@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icons/6.6.6/css/flag-icons.min.css">
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700;900&display=swap');
 
         :root {
@@ -29,8 +33,8 @@
 
         body {
             margin: 0;
-            width: 1920px;
-            height: 1080px;
+            width: 100vw;
+            height: 100vh;
             background: transparent;
             font-family: sans-serif;
             color: var(--text-main);
@@ -94,7 +98,7 @@
             border-top: 1px solid var(--border-grey);
             border-radius: 0;
             display: grid;
-            grid-template-columns: 380px 1fr 340px 420px;
+            grid-template-columns: 380px 450px 250px minmax(350px, 1fr) 420px;
             overflow: hidden;
             z-index: 10;
         }
@@ -102,7 +106,7 @@
         .section {
             border-right: 1px solid var(--border-grey);
             position: relative;
-            padding: 35px 15px 10px 15px;
+            padding: 35px 10px 10px 10px;
             display: flex;
             flex-direction: column;
             gap: 10px;
@@ -209,7 +213,7 @@
         }
 
         .lb-val {
-            width: 78px;
+            width: 95px;
             text-align: right;
             font-family: sans-serif;
             font-variant-numeric: tabular-nums;
@@ -230,15 +234,23 @@
         /* RACE CONTROL GRID */
         .rc-grid {
             display: grid;
-            grid-template-rows: 1fr 1fr;
-            gap: 10px;
+            grid-template-rows: repeat(3, 1fr);
+            gap: 4px;
             flex: 1;
+            min-height: 0;
         }
 
         .rc-row {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+            min-height: 0;
+        }
+
+        /* Tighter widget boxes inside race control */
+        .rc-grid .widget-box {
+            padding: 2px 4px;
+            justify-content: center;
         }
 
         .w-label {
@@ -439,9 +451,13 @@
             border-radius: 2px;
             padding: 1px 4px;
             font-size: 8px;
-            color: #ffd700;
             margin-left: auto;
         }
+        
+        .ers-mode-NONE { background: rgba(255, 255, 255, 0.08); color: #999; }
+        .ers-mode-MEDIUM { background: #ffd700; color: #000; font-weight: bold; }
+        .ers-mode-HOTLAP { background: var(--f1-red); color: #fff; font-weight: bold; }
+        .ers-mode-OVERTAKE { background: #8800ff; color: #fff; font-weight: bold; }
 
         .ers-bar-row {
             display: flex;
@@ -451,8 +467,8 @@
         }
 
         .ers-bar-label {
-            width: 22px;
-            font-size: 8px;
+            width: 32px;
+            font-size: 11px;
             font-weight: 800;
             color: var(--text-dim);
             flex-shrink: 0;
@@ -467,10 +483,11 @@
         }
 
         .ers-pct {
-            width: 24px;
+            width: 38px;
             text-align: right;
-            font-size: 8px;
-            color: var(--text-dim);
+            font-size: 14px;
+            font-weight: 800;
+            color: #ffffff;
             flex-shrink: 0;
         }
 
@@ -487,11 +504,81 @@
             padding: 0 4px;
             border-radius: 2px;
         }
+
+        .tyre-box {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid #333;
+            border-radius: 6px;
+            flex: 1;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .tyre-box .tyre-title {
+            font-size: 14px;
+            color: var(--text-dim);
+            font-weight: 800;
+        }
+
+        .tyre-box .tyre-val {
+            font-size: 24px;
+            font-weight: 800;
+            margin: 2px 0;
+        }
+
+        .tyre-box .tyre-wear {
+            font-size: 13px;
+            font-weight: 700;
+            color: #ccc;
+        }
+
+        .tyre-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #555;
+            flex-shrink: 0;
+            margin-right: 4px;
+        }
+        .tyre-dot.t-cold { background: #0088ff; box-shadow: 0 0 6px #0088ff; }
+        .tyre-dot.t-ideal { background: #00ff00; box-shadow: 0 0 6px #00ff00; }
+        .tyre-dot.t-hot { background: #ffd700; box-shadow: 0 0 6px #ffd700; }
+        .tyre-dot.t-superhot { background: #ff0000; box-shadow: 0 0 6px #ff0000; }
+
+        .led {
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            background: #2a2a2a;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+            transition: all 0.05s;
+        }
+        .led.active.led-g { background: #00b000; box-shadow: 0 0 7px 1px #00b000, inset 0 1px 2px rgba(255,255,255,0.7); }
+        .led.active.led-r { background: #d00000; box-shadow: 0 0 7px 1px #d00000, inset 0 1px 2px rgba(255,255,255,0.7); }
+        .led.active.led-b { background: #4000b0; box-shadow: 0 0 7px 1px #4000b0, inset 0 1px 2px rgba(255,255,255,0.7); }
+        .led.led-shift { background: #4000b0 !important; box-shadow: 0 0 7px 1px #4000b0, inset 0 1px 2px rgba(255,255,255,0.7) !important; }
+
+        /* Compound table in race control */
+        .compound-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 0;
+            border-bottom: 1px solid #1a1a1a;
+            width: 100px;
+        }
+        .compound-row:last-child { border-bottom: none; }
+        .compound-row img { width: 17px; height: 17px; object-fit: contain; flex-shrink: 0; }
+        .compound-name { font-weight: 900; font-size: 12px; width: 24px; flex-shrink: 0; color: #fff; text-align: center; }
+        .compound-range { color: #aaa; font-size: 11px; font-weight: 700; }
     </style>
 </head>
 
 <body>
-
     <div class="f1-top-tab">
         <div id="status-dot" class="status-dot"></div>
         <img src="resources/f1-logo.svg" style="height:22px; margin-right:20px;">
@@ -506,52 +593,112 @@
             <div id="lb-list"></div>
         </div>
 
-        <div class="section">
+        <div class="section" style="padding-top: 28px; padding-bottom: 6px;">
             <div class="section-label"><span>//</span> RACE CONTROL <span>//</span></div>
             <div class="rc-grid">
+                <!-- Row 1: POSIÇÃO | PNEU | DRS -->
                 <div class="rc-row">
-                    <div class="widget-box">
-                        <div class="w-label">VOLTA</div>
-                        <div class="w-val" id="r-lap">--</div>
-                    </div>
                     <div class="widget-box">
                         <div class="w-label">POSIÇÃO</div>
                         <div class="w-val" id="r-pos" style="color:var(--f1-red)">--</div>
                     </div>
                     <div class="widget-box">
-                        <div class="w-label">GAP</div>
-                        <div class="w-val" id="r-gap">--</div>
-                        <div class="w-sub" id="r-gap-who">FRONT</div>
-                    </div>
-                    <div class="widget-box">
-                        <div class="w-label">CIRCUITO</div>
-                        <div class="w-val" style="font-size:14px; line-height:1.1" id="r-track">N/A</div>
-                        <div class="w-sub"><span id="r-country">TRACK</span> <span id="r-flag" class="fi"
-                                style="margin-left:3px"></span></div>
-                    </div>
-                </div>
-                <div class="rc-row">
-                    <div class="widget-box">
                         <div class="w-label">PNEU</div>
-                        <img id="r-tyre-ico" src="resources/tyre-m.png"
-                            style="width:40px;height:40px;object-fit:contain;">
-                        <div class="w-sub" id="r-tyre-age">-- LAPS</div>
-                    </div>
-                    <div class="widget-box">
-                        <div class="w-label">COMBUSTÍVEL</div>
-                        <div class="w-val" id="r-fuel">--</div>
-                        <div class="fuel-bar">
-                            <div id="f-fill" class="fuel-fill"></div>
-                        </div>
+                        <img id="r-tyre-ico" src="resources/tyre-m.png" style="width:32px;height:32px;object-fit:contain; margin-top:2px;">
+                        <div class="w-sub" id="r-tyre-age" style="margin-top:-2px;">-- LAPS</div>
                     </div>
                     <div class="widget-box">
                         <div class="w-label">DRS</div>
                         <div class="w-val" id="r-drs" style="color:#555">OFF</div>
                     </div>
+                </div>
+                <!-- Row 2: DELTA | GAP FRONT | GAP BEHIND -->
+                <div class="rc-row">
                     <div class="widget-box">
-                        <div class="w-label">PISTA</div>
-                        <div class="w-val" id="r-temp">--°C</div>
-                        <div class="w-sub">☀ TEMPERATURA</div>
+                        <div class="w-label">DELTA</div>
+                        <div class="w-val" id="r-delta" style="font-size:20px;">--</div>
+                        <div class="w-sub" id="r-best-lap" style="color:var(--text-dim); margin-top:0px;">--:--.---</div>
+                    </div>
+                    <div class="widget-box">
+                        <div class="w-label">GAP FRENTE</div>
+                        <div class="w-val" id="r-gap">--</div>
+                        <div class="w-sub" id="r-gap-who" style="color:var(--text-main);"></div>
+                    </div>
+                    <div class="widget-box">
+                        <div class="w-label">GAP ATRÁS</div>
+                        <div class="w-val" id="r-interval">--</div>
+                        <div class="w-sub" id="r-interval-who" style="color:var(--text-main);"></div>
+                    </div>
+                </div>
+                <!-- Row 3: COMBUSTÍVEL | CIRCUITO | COMPOSTOS -->
+                <div class="rc-row">
+                    <div class="widget-box">
+                        <div class="w-label">COMBUSTÍVEL</div>
+                        <div class="w-val" id="r-fuel" style="font-size:18px;">--</div>
+                        <div class="fuel-bar" style="width:90%;">
+                            <div id="f-fill" class="fuel-fill"></div>
+                        </div>
+                    </div>
+                    <div class="widget-box" style="display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; padding:0 5px;">
+                        <div class="w-label">CIRCUITO</div>
+                        <div class="w-val" style="font-size:clamp(10px,1.2vw,14px); line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;" id="r-track">N/A</div>
+                        <div class="w-sub" style="margin-top:4px;"><span id="r-flag" class="fi"></span></div>
+                    </div>
+                    <div class="widget-box" style="padding:4px 6px; justify-content:center;">
+                        <div class="w-label" style="text-align:center; margin-bottom:3px;">COMPOSTOS</div>
+                        <div id="compound-table" style="width:100%;display:flex;flex-direction:column;align-items:center;">
+                            <div class="compound-row">
+                                <img src="resources/tyre-s.png"><span class="compound-name" id="c-soft-name">--</span><span class="compound-range" id="c-soft-range">--°–--°</span>
+                            </div>
+                            <div class="compound-row">
+                                <img src="resources/tyre-m.png"><span class="compound-name" id="c-med-name">--</span><span class="compound-range" id="c-med-range">--°–--°</span>
+                            </div>
+                            <div class="compound-row">
+                                <img src="resources/tyre-h.png"><span class="compound-name" id="c-hard-name">--</span><span class="compound-range" id="c-hard-range">--°–--°</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-label"><span>//</span> PNEUS <span>//</span></div>
+            <div class="tyre-grid" style="display:flex; flex-direction:column; gap:10px; justify-content:center; margin-top:15px;">
+                <div style="display:flex; justify-content:space-between; gap:10px; flex:1;">
+                    <div class="tyre-box" id="box-fl">
+                        <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                            <div class="tyre-title">FL</div>
+                            <div id="dot-fl" class="tyre-dot"></div>
+                        </div>
+                        <div class="tyre-val"><span id="v-fl">--</span>°C</div>
+                        <div class="tyre-wear" style="font-size: 16px;"><span id="w-fl">0%</span></div>
+                    </div>
+                    <div class="tyre-box" id="box-fr">
+                        <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                            <div class="tyre-title">FR</div>
+                            <div id="dot-fr" class="tyre-dot"></div>
+                        </div>
+                        <div class="tyre-val"><span id="v-fr">--</span>°C</div>
+                        <div class="tyre-wear" style="font-size: 16px;"><span id="w-fr">0%</span></div>
+                    </div>
+                </div>
+                <div style="display:flex; justify-content:space-between; gap:10px; flex:1;">
+                    <div class="tyre-box" id="box-rl">
+                        <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                            <div class="tyre-title">RL</div>
+                            <div id="dot-rl" class="tyre-dot"></div>
+                        </div>
+                        <div class="tyre-val"><span id="v-rl">--</span>°C</div>
+                        <div class="tyre-wear" style="font-size: 16px;"><span id="w-rl">0%</span></div>
+                    </div>
+                    <div class="tyre-box" id="box-rr">
+                        <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                            <div class="tyre-title">RR</div>
+                            <div id="dot-rr" class="tyre-dot"></div>
+                        </div>
+                        <div class="tyre-val"><span id="v-rr">--</span>°C</div>
+                        <div class="tyre-wear" style="font-size: 16px;"><span id="w-rr">0%</span></div>
                     </div>
                 </div>
             </div>
@@ -559,52 +706,56 @@
 
         <div class="section">
             <div class="section-label"><span>//</span> TELEMETRIA <span>//</span></div>
-            <div class="tel-stats">
+            <div class="rev-lights" style="display:flex; justify-content:center; gap:6px; margin-bottom: 6px; margin-top: 5px;">
+                <div class="led led-g"></div><div class="led led-g"></div><div class="led led-g"></div><div class="led led-g"></div><div class="led led-g"></div>
+                <div class="led led-r"></div><div class="led led-r"></div><div class="led led-r"></div><div class="led led-r"></div><div class="led led-r"></div>
+                <div class="led led-b"></div><div class="led led-b"></div><div class="led led-b"></div><div class="led led-b"></div><div class="led led-b"></div>
+            </div>
+            <div class="tel-stats" style="margin-bottom: 12px;">
                 <div class="tel-unit">
-                    <div class="v" id="t-gear">N</div>
+                    <div class="v" id="t-gear" style="font-size:38px;">N</div>
                     <div class="l">GEAR</div>
                 </div>
                 <div class="tel-unit">
-                    <div class="v" id="t-speed">0</div>
+                    <div class="v" id="t-rpm" style="font-size:38px; min-width: 100px;">0</div>
+                    <div class="l">RPM</div>
+                </div>
+                <div class="tel-unit">
+                    <div class="v" id="t-speed" style="font-size:38px;">0</div>
                     <div class="l">KM/H</div>
                 </div>
             </div>
-            <div class="ers-stack">
-                <div class="ers-header-row">
-                    ERS
-                    <span class="ers-mode-badge" id="ers-mode">NONE</span>
+            <div class="ers-stack" style="gap:5px; margin-bottom: 10px;">
+                <div class="ers-header-row" style="font-size:12px;">
+                    <span style="color:var(--text-dim);">ERS</span>
+                    <span class="ers-mode-badge" id="ers-mode" style="font-size:11px; padding:2px 8px;">NONE</span>
                 </div>
                 <div class="ers-bar-row">
                     <span class="ers-bar-label">BATT</span>
-                    <div class="t-bar-bg">
+                    <div class="t-bar-bg" style="height:5px;">
                         <div id="b-ers" class="t-bar-fill" style="background:#ffd700"></div>
                     </div>
                     <span class="ers-pct" id="ers-pct">0%</span>
                 </div>
                 <div class="ers-bar-row">
                     <span class="ers-bar-label">LAP</span>
-                    <div class="t-bar-bg">
+                    <div class="t-bar-bg" style="height:5px;">
                         <div id="b-ers-lap" class="t-bar-fill" style="background:#00ff00"></div>
                     </div>
                     <span class="ers-pct" id="ers-lap-pct">0%</span>
                 </div>
             </div>
-            <div class="t-bar-row"><span>THR</span>
-                <div class="t-bar-bg">
+            <div class="t-bar-row" style="margin-bottom:-5px;">
+                <span style="font-size:12px; width:32px; text-align:left; color:var(--text-dim);">THR</span>
+                <div class="t-bar-bg" style="height:5px;">
                     <div id="b-thr" class="t-bar-fill" style="background:#00ff00"></div>
                 </div>
             </div>
-            <div class="t-bar-row"><span>BRK</span>
-                <div class="t-bar-bg">
+            <div class="t-bar-row">
+                <span style="font-size:12px; width:32px; text-align:left; color:var(--text-dim);">BRK</span>
+                <div class="t-bar-bg" style="height:5px;">
                     <div id="b-brk" class="t-bar-fill" style="background:var(--f1-red)"></div>
                 </div>
-            </div>
-
-            <div class="tyre-mini-grid">
-                <div class="tyre-mini-box" id="box-fl"><span>FL</span><div><span id="w-fl" style="color:#888; font-size:9px; margin-right:4px;">0%</span><span id="v-fl">--</span></div></div>
-                <div class="tyre-mini-box" id="box-fr"><span>FR</span><div><span id="w-fr" style="color:#888; font-size:9px; margin-right:4px;">0%</span><span id="v-fr">--</span></div></div>
-                <div class="tyre-mini-box" id="box-rl"><span>RL</span><div><span id="w-rl" style="color:#888; font-size:9px; margin-right:4px;">0%</span><span id="v-rl">--</span></div></div>
-                <div class="tyre-mini-box" id="box-rr"><span>RR</span><div><span id="w-rr" style="color:#888; font-size:9px; margin-right:4px;">0%</span><span id="v-rr">--</span></div></div>
             </div>
         </div>
 
@@ -724,6 +875,61 @@
             7: { short: 'I', cls: 't-I', img: 'resources/tyre-i.png' },
             8: { short: 'W', cls: 't-W', img: 'resources/tyre-w.png' }
         };
+
+        // Tyre temp ranges by actual compound (m_actualTyreCompound)
+        // actualTyreCompound values from spec: C5=16, C4=17, C3=18, C2=19, C1=20, C6=21
+        const tyreTempRanges = {
+            16: { min: 70, max: 90,  name: 'C5' },  // C5
+            17: { min: 75, max: 100, name: 'C4' },  // C4
+            18: { min: 80, max: 105, name: 'C3' },  // C3
+            19: { min: 85, max: 115, name: 'C2' },  // C2
+            20: { min: 90, max: 115, name: 'C1' },  // C1
+            21: { min: 65, max: 85,  name: 'C6' },  // C6
+            7:  { min: 60, max: 80,  name: 'INT' }, // Intermediate
+            8:  { min: 50, max: 70,  name: 'WET' }, // Wet
+        };
+
+        // Per-track compound allocation: [soft, medium, hard] as m_actualTyreCompound values
+        // C1=20, C2=19, C3=18, C4=17, C5=16, C6=21
+        // Source: 2025 F1 season official allocations
+        const trackCompounds = {
+            0:  [16, 17, 18],  // Melbourne: S=C5, M=C4, H=C3
+            2:  [17, 18, 19],  // Shanghai: S=C4, M=C3, H=C2
+            13: [18, 19, 20],  // Suzuka: S=C3, M=C2, H=C1
+            3:  [18, 19, 20],  // Sakhir: S=C3, M=C2, H=C1
+            29: [16, 17, 18],  // Jeddah: S=C5, M=C4, H=C3
+            30: [16, 17, 18],  // Miami: S=C5, M=C4, H=C3
+            27: [21, 16, 17],  // Imola: S=C6, M=C5, H=C4
+            5:  [21, 16, 17],  // Monaco: S=C6, M=C5, H=C4
+            4:  [18, 19, 20],  // Catalunya: S=C3, M=C2, H=C1
+            6:  [21, 16, 17],  // Montreal: S=C6, M=C5, H=C4
+            17: [16, 17, 18],  // Austria: S=C5, M=C4, H=C3
+            7:  [17, 18, 19],  // Silverstone: S=C4, M=C3, H=C2
+            10: [17, 18, 20],  // Spa: S=C4, M=C3, H=C1 (skips C2)
+            9:  [16, 17, 18],  // Hungaroring: S=C5, M=C4, H=C3
+            26: [17, 18, 19],  // Zandvoort: S=C4, M=C3, H=C2
+            11: [16, 17, 18],  // Monza: S=C5, M=C4, H=C3
+            20: [21, 16, 17],  // Baku: S=C6, M=C5, H=C4
+            12: [16, 17, 18],  // Singapore: S=C5, M=C4, H=C3
+            15: [17, 18, 20],  // Austin: S=C4, M=C3, H=C1 (skips C2)
+            19: [16, 17, 19],  // Mexico: S=C5, M=C4, H=C2 (skips C3)
+            16: [17, 18, 19],  // Brazil: S=C4, M=C3, H=C2
+            31: [16, 17, 18],  // Las Vegas: S=C5, M=C4, H=C3
+            32: [18, 19, 20],  // Losail: S=C3, M=C2, H=C1
+            14: [16, 17, 18],  // Abu Dhabi: S=C5, M=C4, H=C3
+        };
+
+        // Fallback when we don't know the compound
+        const defaultTempRange = { min: 75, max: 105, name: '??' };
+
+        function getTyreTemp(temp, actualCompound) {
+            const range = tyreTempRanges[actualCompound] || defaultTempRange;
+            if (temp < range.min) return 't-cold';
+            if (temp > range.max) return 't-superhot';
+            const mid = (range.min + range.max) / 2;
+            if (temp > mid + (range.max - mid) * 0.5) return 't-hot';
+            return 't-ideal';
+        }
 
         const teamLogos = {
             0: 'resources/mercedes.png',
@@ -880,7 +1086,13 @@
                 document.getElementById('top-lap').innerText = '--/--';
                 document.getElementById('r-pos').innerText = '--';
                 document.getElementById('r-gap').innerText = '--';
-                document.getElementById('r-gap-who').innerText = 'FRONT';
+                document.getElementById('r-gap-who').innerText = '';
+                document.getElementById('r-interval').innerText = '--';
+                document.getElementById('r-interval-who').innerText = '';
+                
+                document.getElementById('r-delta').innerText = '--';
+                document.getElementById('r-delta').style.color = 'var(--text-main)';
+                document.getElementById('r-best-lap').innerText = '--:--.---';
                 
                 document.getElementById('b-thr').style.width = '0%';
                 document.getElementById('b-brk').style.width = '0%';
@@ -1003,23 +1215,61 @@
                 document.getElementById('b-ers-lap').style.width = ersLap + '%';
                 document.getElementById('ers-lap-pct').innerText = Math.round(ersLap) + '%';
 
-                document.getElementById('ers-mode').innerText = ersModes[ersStatus.m_ersDeployMode] || 'NONE';
+                const modeName = ersModes[ersStatus.m_ersDeployMode] || 'NONE';
+                const ersBadge = document.getElementById('ers-mode');
+                ersBadge.innerText = modeName;
+                ersBadge.className = 'ers-mode-badge ers-mode-' + modeName;
+            }
+
+            const status = state.carStatus[state.playerIdx];
+            if (status) {
+                const tyre = tyreMap[status.m_visualTyreCompound];
+                let tyreHtml = '';
+                if (tyre && tyre.img) {
+                    tyreHtml = `<img src="${tyre.img}" style="width:22px;height:22px;object-fit:contain;">`;
+                } else if (tyre) {
+                    tyreHtml = `<span class="lb-tyre ${tyre.cls}">${tyre.short}</span>`;
+                }
+                const c_fl = document.getElementById('c-fl');
+                if (c_fl) {
+                    c_fl.innerHTML = tyreHtml;
+                    document.getElementById('c-fr').innerHTML = tyreHtml;
+                    document.getElementById('c-rl').innerHTML = tyreHtml;
+                    document.getElementById('c-rr').innerHTML = tyreHtml;
+                }
             }
 
             const t = car.m_tyresSurfaceTemperature;
             // RL RR FL FR
-            document.getElementById('v-rl').innerText = t[0] + '°';
-            document.getElementById('v-rr').innerText = t[1] + '°';
-            document.getElementById('v-fl').innerText = t[2] + '°';
-            document.getElementById('v-fr').innerText = t[3] + '°';
+            document.getElementById('v-rl').innerText = t[0];
+            document.getElementById('v-rr').innerText = t[1];
+            document.getElementById('v-fl').innerText = t[2];
+            document.getElementById('v-fr').innerText = t[3];
 
-            // Colour tyre boxes by heat
+            document.getElementById('t-rpm').innerText = car.m_engineRPM;
+
+            const revPct = car.m_revLightsPercent || 0;
+            const numLeds = Math.round((revPct / 100) * 15);
+            const leds = document.querySelectorAll('.led');
+            leds.forEach((led, idx) => {
+                if (revPct >= 98 && numLeds > 0) {
+                    led.classList.add('active', 'led-shift');
+                } else if (idx < numLeds) {
+                    led.classList.add('active');
+                    led.classList.remove('led-shift');
+                } else {
+                    led.classList.remove('active', 'led-shift');
+                }
+            });
+
+            // Colour tyre dots by heat using compound-specific ranges
+            const actualCompound = (state.carStatus[state.playerIdx] || {}).m_actualTyreCompound;
             ['fl', 'fr', 'rl', 'rr'].forEach((w, idx) => {
                 const temp = t[idx < 2 ? idx + 2 : idx - 2]; // FL=t[2],FR=t[3],RL=t[0],RR=t[1]
-                const box = document.getElementById('box-' + w);
-                if (!box) return;
-                box.classList.remove('hot');
-                if (temp > 110) box.classList.add('hot');
+                const dot = document.getElementById('dot-' + w);
+                if (!dot) return;
+                dot.classList.remove('t-cold', 't-ideal', 't-hot', 't-superhot');
+                dot.classList.add(getTyreTemp(temp, actualCompound));
             });
             
             const wear = state.carDamage && state.carDamage[state.playerIdx] ? state.carDamage[state.playerIdx].m_tyresWear : [0,0,0,0];
@@ -1048,15 +1298,30 @@
                 });
             }
 
-            document.getElementById('r-lap').innerText = lap.m_currentLapNum;
+            const bestLapMs = carBestLap[pIdx];
+            const lastLapMs = lap.m_lastLapTimeInMS;
+            if (bestLapMs && lastLapMs > 0) {
+                document.getElementById('r-best-lap').innerText = formatMS(bestLapMs);
+                if (lastLapMs === bestLapMs) {
+                    document.getElementById('r-delta').innerText = 'BEST';
+                    document.getElementById('r-delta').style.color = 'var(--purple-fastest)';
+                } else {
+                    const diff = lastLapMs - bestLapMs;
+                    document.getElementById('r-delta').innerText = '+' + (diff / 1000).toFixed(3);
+                    document.getElementById('r-delta').style.color = 'var(--f1-red)';
+                }
+            } else {
+                document.getElementById('r-delta').innerText = '--';
+                document.getElementById('r-delta').style.color = 'var(--text-main)';
+                document.getElementById('r-best-lap').innerText = '--:--.---';
+            }
+
             document.getElementById('top-lap').innerText = `${lap.m_currentLapNum}/${session.m_totalLaps || '--'}`;
 
             document.getElementById('r-pos').innerText = 'P' + lap.m_carPosition;
-            document.getElementById('r-temp').innerText = (session.m_trackTemperature ?? '--') + '°C';
 
             const trackInfo = trackNames[session.m_trackId];
             document.getElementById('r-track').innerText = trackInfo ? trackInfo.name : 'UNKNOWN';
-            document.getElementById('r-country').innerText = trackInfo ? trackInfo.country : 'TRACK';
             const flagEl = document.getElementById('r-flag');
             if (flagEl) flagEl.className = trackInfo ? `fi fi-${trackInfo.code}` : 'fi';
 
@@ -1100,15 +1365,58 @@
             document.getElementById('r-tyre-age').innerText =
                 status.m_tyresAgeLaps + ' LAPS';
 
+            // Update compound table based on current track
+            const trackId = session.m_trackId;
+            const compounds = trackCompounds[trackId];
+            if (compounds) {
+                const labels = ['soft', 'med', 'hard'];
+                compounds.forEach((actualC, i) => {
+                    const info = tyreTempRanges[actualC] || defaultTempRange;
+                    const nameEl = document.getElementById(`c-${labels[i]}-name`);
+                    const rangeEl = document.getElementById(`c-${labels[i]}-range`);
+                    if (nameEl) nameEl.innerText = info.name;
+                    if (rangeEl) rangeEl.innerText = `${info.min}°–${info.max}°`;
+                });
+            }
+
             if (lap.m_carPosition === 1) {
                 document.getElementById('r-gap').innerText = 'LEAD';
                 document.getElementById('r-gap-who').innerText = '';
-            } else if (lap.m_deltaToCarInFrontInMS !== undefined) {
-                document.getElementById('r-gap').innerText = '+' + (lap.m_deltaToCarInFrontInMS / 1000).toFixed(3);
+            } else {
                 const aheadRow = state.lapData.find(x => x.m_carPosition === lap.m_carPosition - 1);
                 const aheadIdx = aheadRow ? state.lapData.indexOf(aheadRow) : -1;
                 const aheadP = aheadIdx >= 0 ? state.participants[aheadIdx] : null;
                 document.getElementById('r-gap-who').innerText = extractShortName(aheadP?.m_name);
+                if (aheadRow) {
+                    const gapMs = lap.m_deltaToCarInFrontInMS;
+                    // Sanity check: if the parsed delta seems too large (>120s), fall back to distance diff
+                    if (gapMs > 0 && gapMs < 120000) {
+                        document.getElementById('r-gap').innerText = '+' + (gapMs / 1000).toFixed(3);
+                    } else {
+                        // Estimate from total distance
+                        const distDiff = aheadRow.m_totalDistance - lap.m_totalDistance;
+                        document.getElementById('r-gap').innerText = distDiff >= 0 ? ('+' + distDiff.toFixed(0) + 'm') : '--';
+                    }
+                } else {
+                    document.getElementById('r-gap').innerText = '--';
+                }
+            }
+
+            const behindRow = state.lapData.find(x => x.m_carPosition === lap.m_carPosition + 1);
+            if (!behindRow) {
+                document.getElementById('r-interval').innerText = '--';
+                document.getElementById('r-interval-who').innerText = '';
+            } else {
+                const behindIdx = state.lapData.indexOf(behindRow);
+                const behindP = behindIdx >= 0 ? state.participants[behindIdx] : null;
+                document.getElementById('r-interval-who').innerText = extractShortName(behindP?.m_name);
+                const gapMs = behindRow.m_deltaToCarInFrontInMS;
+                if (gapMs > 0 && gapMs < 120000) {
+                    document.getElementById('r-interval').innerText = '+' + (gapMs / 1000).toFixed(3);
+                } else {
+                    const distDiff = lap.m_totalDistance - behindRow.m_totalDistance;
+                    document.getElementById('r-interval').innerText = distDiff >= 0 ? ('+' + distDiff.toFixed(0) + 'm') : '--';
+                }
             }
         }
 
@@ -1234,7 +1542,7 @@
                     if (s) {
                         const pct = Math.round((s.m_ersStoreEnergy / 4000000) * 100);
                         const modeName = ersModes[s.m_ersDeployMode] || 'NONE';
-                        gapText = `${modeName} ${pct}%`;
+                        gapText = `<span class="ers-mode-badge ers-mode-${modeName}" style="margin-left:0; margin-right:4px;">${modeName}</span> ${pct}%`;
                     }
                 }
 

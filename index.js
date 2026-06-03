@@ -66,11 +66,18 @@ function parseLapData(buffer) {
     const CAR_SIZE = 57;
 
     for (let i = 0; i < MAX_CARS; i++) {
+        // Deltas: uint16 (ms part) + uint8 (minutes part)
+        // Total = minutesPart * 60000 + msPart
+        const deltaFrontMS = buffer.readUInt16LE(offset + 14);
+        const deltaFrontMin = buffer.readUInt8(offset + 16);
+        const deltaLeaderMS = buffer.readUInt16LE(offset + 17);
+        const deltaLeaderMin = buffer.readUInt8(offset + 19);
+
         cars.push({
             m_lastLapTimeInMS: buffer.readUInt32LE(offset + 0),
             m_currentLapTimeInMS: buffer.readUInt32LE(offset + 4),
-            m_deltaToCarInFrontInMS: buffer.readUInt16LE(offset + 14) + (buffer.readUInt8(offset + 16) * 60000),
-            m_deltaToRaceLeaderInMS: buffer.readUInt16LE(offset + 17) + (buffer.readUInt8(offset + 19) * 60000),
+            m_deltaToCarInFrontInMS: (deltaFrontMin * 60000) + deltaFrontMS,
+            m_deltaToRaceLeaderInMS: (deltaLeaderMin * 60000) + deltaLeaderMS,
             m_totalDistance: buffer.readFloatLE(offset + 24),
             m_carPosition: buffer.readUInt8(offset + 32),
             m_currentLapNum: buffer.readUInt8(offset + 33),
@@ -116,6 +123,7 @@ function parseTelemetry(buffer) {
             m_gear: buffer.readInt8(offset + 15),
             m_engineRPM: buffer.readUInt16LE(offset + 16),
             m_drs: buffer.readUInt8(offset + 18),
+            m_revLightsPercent: buffer.readUInt8(offset + 19),
             m_tyresSurfaceTemperature: [
                 buffer.readUInt8(offset + 34), // RL
                 buffer.readUInt8(offset + 35), // RR
@@ -141,6 +149,7 @@ function parseCarStatus(buffer) {
             m_fuelCapacity: buffer.readFloatLE(offset + 9),
             m_drsAllowed: buffer.readUInt8(offset + 22),
             m_drsActivationDistance: buffer.readUInt16LE(offset + 23),
+            m_actualTyreCompound: buffer.readUInt8(offset + 25),
             m_visualTyreCompound: buffer.readUInt8(offset + 26),
             m_tyresAgeLaps: buffer.readUInt8(offset + 27),
             m_ersStoreEnergy: buffer.readFloatLE(offset + 37),
