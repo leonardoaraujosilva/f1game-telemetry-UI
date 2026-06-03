@@ -32,10 +32,13 @@
             width: 1920px;
             height: 1080px;
             background: transparent;
-            font-family: 'Titillium Web', sans-serif;
+            font-family: sans-serif;
             color: var(--text-main);
             text-transform: uppercase;
             overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
         }
 
         .f1-top-tab {
@@ -206,11 +209,14 @@
         }
 
         .lb-val {
-            width: 68px;
+            width: 78px;
             text-align: right;
-            font-family: 'Titillium Web', monospace;
-            font-size: 11px;
+            font-family: sans-serif;
+            font-variant-numeric: tabular-nums;
+            font-size: 12px;
+            font-weight: 600;
             color: #ccc;
+            white-space: nowrap;
         }
 
         .lb-val.fastest {
@@ -243,7 +249,7 @@
 
         .w-val {
             font-size: 22px;
-            font-weight: 900;
+            font-weight: 800;
             line-height: 1;
         }
 
@@ -255,7 +261,7 @@
         }
 
         .fuel-bar {
-            width: 50px;
+            width: 65%;
             height: 4px;
             background: #222;
             border-radius: 2px;
@@ -279,7 +285,7 @@
 
         .tel-unit .v {
             font-size: 40px;
-            font-weight: 900;
+            font-weight: 800;
             line-height: 1;
             text-align: center;
         }
@@ -329,7 +335,6 @@
             display: flex;
             justify-content: space-between;
             font-size: 11px;
-            font-weight: 800;
         }
 
         .tyre-mini-box.hot {
@@ -529,7 +534,7 @@
                     <div class="widget-box">
                         <div class="w-label">PNEU</div>
                         <img id="r-tyre-ico" src="resources/tyre-m.png"
-                            style="width:30px;height:30px;object-fit:contain;">
+                            style="width:40px;height:40px;object-fit:contain;">
                         <div class="w-sub" id="r-tyre-age">-- LAPS</div>
                     </div>
                     <div class="widget-box">
@@ -579,7 +584,7 @@
                 <div class="ers-bar-row">
                     <span class="ers-bar-label">LAP</span>
                     <div class="t-bar-bg">
-                        <div id="b-ers-lap" class="t-bar-fill" style="background:#ffaa00"></div>
+                        <div id="b-ers-lap" class="t-bar-fill" style="background:#00ff00"></div>
                     </div>
                     <span class="ers-pct" id="ers-lap-pct">0%</span>
                 </div>
@@ -596,10 +601,10 @@
             </div>
 
             <div class="tyre-mini-grid">
-                <div class="tyre-mini-box" id="box-fl"><span>FL</span><span id="v-fl">--</span></div>
-                <div class="tyre-mini-box" id="box-fr"><span>FR</span><span id="v-fr">--</span></div>
-                <div class="tyre-mini-box" id="box-rl"><span>RL</span><span id="v-rl">--</span></div>
-                <div class="tyre-mini-box" id="box-rr"><span>RR</span><span id="v-rr">--</span></div>
+                <div class="tyre-mini-box" id="box-fl"><span>FL</span><div><span id="w-fl" style="color:#888; font-size:9px; margin-right:4px;">0%</span><span id="v-fl">--</span></div></div>
+                <div class="tyre-mini-box" id="box-fr"><span>FR</span><div><span id="w-fr" style="color:#888; font-size:9px; margin-right:4px;">0%</span><span id="v-fr">--</span></div></div>
+                <div class="tyre-mini-box" id="box-rl"><span>RL</span><div><span id="w-rl" style="color:#888; font-size:9px; margin-right:4px;">0%</span><span id="v-rl">--</span></div></div>
+                <div class="tyre-mini-box" id="box-rr"><span>RR</span><div><span id="w-rr" style="color:#888; font-size:9px; margin-right:4px;">0%</span><span id="v-rr">--</span></div></div>
             </div>
         </div>
 
@@ -654,14 +659,17 @@
             lapData: [],
             carStatus: [],
             carTelemetry: [],
+            carDamage: [],
             session: {},
             playerIdx: 0
         };
 
+        let initialFuel = 0;
         let sessionBestLap = Infinity;
         let sessionBestCarIdx = -1;
         let lastLapNums = {};
         let carBestLap = {}; // per-car best lap time in ms
+        let driverLapDisplay = {}; // { carIdx: { text: string, isFastest: boolean, expireAt: number } }
 
         const trackNames = {
             0: { name: 'MELBOURNE', country: 'AUSTRALIA', code: 'au' },
@@ -753,14 +761,13 @@
         // Each entry: { mode, duration (ms), weight }
         // weight = how many slots it gets in the rotation playlist.
         // Higher weight = appears more often.
-        // Modes: INTERVAL_PLAYER, INTERVAL_LEADER, LAST_LAP, BEST_LAP, TYRES, ERS
+        // Modes: INTERVAL_PLAYER, INTERVAL_LEADER, BEST_LAP, TYRES, ERS
         const LB_SCHEDULE = [
-            { mode: 'INTERVAL_PLAYER', duration: 14000, weight: 5 },
-            { mode: 'INTERVAL_LEADER', duration: 11000, weight: 4 },
-            { mode: 'LAST_LAP', duration: 6000, weight: 2 },
-            { mode: 'BEST_LAP', duration: 7000, weight: 1 },
-            { mode: 'TYRES', duration: 5000, weight: 1 },
-            { mode: 'ERS', duration: 4000, weight: 1 },
+            { mode: 'INTERVAL_PLAYER', duration: 25000, weight: 6 },
+            { mode: 'INTERVAL_LEADER', duration: 25000, weight: 6 },
+            { mode: 'BEST_LAP', duration: 10000, weight: 2 },
+            { mode: 'TYRES', duration: 10000, weight: 1 },
+            { mode: 'ERS', duration: 10000, weight: 1 },
         ];
 
         // Build weighted playlist: repeat each entry by its weight, then shuffle
@@ -781,11 +788,9 @@
         let lbPlayIdx = 0;
         let lbCurrent = lbPlaylist[0];
         let lbModeTimer = null;
-        let lbInterrupted = false; // true when a lap-completion override is active
+        let lastLapTyresShown = 0;
 
-        function advanceLbMode(forced) {
-            if (lbInterrupted && !forced) return; // don't advance during override
-
+        function advanceLbMode() {
             const leaderLap = (state.lapData && state.lapData.length > 0)
                 ? Math.max(...state.lapData.map(l => l.m_currentLapNum || 0))
                 : 0;
@@ -810,40 +815,26 @@
                 lbCurrent = lbPlaylist[lbPlayIdx];
 
                 // Validate mode
-                if (lbCurrent.mode === 'LAST_LAP' && leaderLap < 2) { attempts++; continue; }
                 if (lbCurrent.mode === 'BEST_LAP' && leaderLap < 3) { attempts++; continue; }
-                if (lbCurrent.mode === 'TYRES' && !anyonePitted) { attempts++; continue; }
+                if (lbCurrent.mode === 'TYRES') {
+                    if (!anyonePitted || leaderLap <= lastLapTyresShown) { attempts++; continue; }
+                }
                 found = true;
+            }
+
+            if (lbCurrent.mode === 'TYRES') {
+                lastLapTyresShown = leaderLap;
             }
 
             document.getElementById('lb-mode').innerText = lbCurrent.mode.replace('_', ' ');
             renderLeaderboard();
             clearTimeout(lbModeTimer);
-            lbModeTimer = setTimeout(() => advanceLbMode(false), lbCurrent.duration);
-        }
-
-        // Trigger: when any car completes a new lap, briefly show LAST_LAP
-        function triggerLastLap() {
-            if (lbInterrupted) return; // already showing a triggered mode
-            const leaderLap = (state.lapData && state.lapData.length > 0)
-                ? Math.max(...state.lapData.map(l => l.m_currentLapNum || 0))
-                : 0;
-            if (leaderLap < 2) return;
-
-            lbInterrupted = true;
-            clearTimeout(lbModeTimer);
-            lbCurrent = { mode: 'LAST_LAP', duration: 6000 };
-            document.getElementById('lb-mode').innerText = 'LAST LAP';
-            renderLeaderboard();
-            lbModeTimer = setTimeout(() => {
-                lbInterrupted = false;
-                advanceLbMode(true);
-            }, 6000);
+            lbModeTimer = setTimeout(() => advanceLbMode(), lbCurrent.duration);
         }
 
         // Start the scheduler
         document.getElementById('lb-mode').innerText = lbCurrent.mode.replace('_', ' ');
-        lbModeTimer = setTimeout(() => advanceLbMode(false), lbCurrent.duration);
+        lbModeTimer = setTimeout(() => advanceLbMode(), lbCurrent.duration);
 
         function extractShortName(fullName) {
             if (!fullName) return 'UNK';
@@ -869,6 +860,41 @@
                 state.playerIdx = msg.playerIdx;
             }
 
+            if (msg.type === 'RESET') {
+                state.lapData = [];
+                state.participants = [];
+                state.carTelemetry = [];
+                state.carStatus = [];
+                state.carDamage = [];
+                state.session = {};
+                
+                sessionBestLap = Infinity;
+                sessionBestCarIdx = -1;
+                lastLapNums = {};
+                carBestLap = {};
+                driverLapDisplay = {};
+                initialFuel = 0;
+                
+                document.getElementById('lb-list').innerHTML = '';
+                document.getElementById('r-lap').innerText = '--';
+                document.getElementById('top-lap').innerText = '--/--';
+                document.getElementById('r-pos').innerText = '--';
+                document.getElementById('r-gap').innerText = '--';
+                document.getElementById('r-gap-who').innerText = 'FRONT';
+                
+                document.getElementById('b-thr').style.width = '0%';
+                document.getElementById('b-brk').style.width = '0%';
+                document.getElementById('b-ers').style.width = '0%';
+                document.getElementById('b-ers-lap').style.width = '0%';
+                document.getElementById('f-fill').style.width = '0%';
+                document.getElementById('t-speed').innerText = '0';
+                document.getElementById('t-gear').innerText = 'N';
+                document.getElementById('r-fuel').innerText = '--';
+                
+                refreshAll();
+                return;
+            }
+
             if (msg.type === 'FULL_STATE') {
                 state = msg.data;
                 state.playerIdx = msg.playerIdx;
@@ -885,32 +911,53 @@
             }
 
             if (msg.type === 'LAP_DATA') {
-                // Detect any new lap completions to trigger LAST_LAP display
+                const now = Date.now();
                 const prev = state.lapData;
                 const next = msg.data.m_lapData;
+
+                let anyLapCompleted = false;
                 if (prev && prev.length) {
                     for (let i = 0; i < next.length; i++) {
                         if (next[i] && prev[i] &&
                             next[i].m_currentLapNum > (prev[i].m_currentLapNum || 0) &&
                             next[i].m_lastLapTimeInMS > 0) {
 
-                            // Update per-car best lap
+                            anyLapCompleted = true;
                             const lt = next[i].m_lastLapTimeInMS;
+                            let isFastest = false;
+
+                            // Update per-car best lap
                             if (!carBestLap[i] || lt < carBestLap[i]) {
                                 carBestLap[i] = lt;
                             }
+
                             // Update session best
-                            if (lt < sessionBestLap) {
+                            if (lt <= sessionBestLap) {
                                 sessionBestLap = lt;
                                 sessionBestCarIdx = i;
+                                isFastest = true;
+                            } else if (lt === sessionBestLap && i === sessionBestCarIdx) {
+                                isFastest = true;
                             }
 
-                            triggerLastLap();
-                            break;
+                            // Show individual lap time for 7 seconds
+                            driverLapDisplay[i] = {
+                                text: formatMS(lt),
+                                isFastest: isFastest,
+                                expireAt: now + 7000
+                            };
+
+                            // Clear it automatically after 7s to re-render
+                            setTimeout(() => {
+                                renderLeaderboard();
+                            }, 7000);
                         }
                     }
                 }
                 state.lapData = next;
+                if (anyLapCompleted) {
+                    requestAnimationFrame(renderLeaderboard);
+                }
             }
 
             if (msg.type === 'CAR_STATUS') {
@@ -920,6 +967,10 @@
             if (msg.type === 'TELEMETRY') {
                 state.carTelemetry = msg.data.m_carTelemetryData;
                 updateTelemetry(msg.data.m_carTelemetryData[state.playerIdx]);
+            }
+
+            if (msg.type === 'CAR_DAMAGE') {
+                state.carDamage = msg.data.m_carDamageData;
             }
 
             refreshAll();
@@ -970,6 +1021,12 @@
                 box.classList.remove('hot');
                 if (temp > 110) box.classList.add('hot');
             });
+            
+            const wear = state.carDamage && state.carDamage[state.playerIdx] ? state.carDamage[state.playerIdx].m_tyresWear : [0,0,0,0];
+            document.getElementById('w-rl').innerText = Math.round(wear[0]) + '%';
+            document.getElementById('w-rr').innerText = Math.round(wear[1]) + '%';
+            document.getElementById('w-fl').innerText = Math.round(wear[2]) + '%';
+            document.getElementById('w-fr').innerText = Math.round(wear[3]) + '%';
         }
 
         function updateRaceControl() {
@@ -1003,9 +1060,14 @@
             const flagEl = document.getElementById('r-flag');
             if (flagEl) flagEl.className = trackInfo ? `fi fi-${trackInfo.code}` : 'fi';
 
+            if (status.m_fuelInTank > initialFuel) {
+                initialFuel = status.m_fuelInTank;
+            }
+            if (initialFuel === 0) initialFuel = 100;
+
             document.getElementById('r-fuel').innerText = status.m_fuelInTank.toFixed(1) + ' KG';
             document.getElementById('f-fill').style.width =
-                ((status.m_fuelInTank / status.m_fuelCapacity) * 100) + '%';
+                ((status.m_fuelInTank / initialFuel) * 100) + '%';
 
             const drsEl = document.getElementById('r-drs');
             const telemetry = state.carTelemetry ? state.carTelemetry[pIdx] : null;
@@ -1067,13 +1129,21 @@
             const leaderLap = allValid[0]?.lap.m_currentLapNum || 0;
 
             let displayRows;
-            if (playerPos > 0 && playerPos <= 8) {
+            if (allValid.length <= 10) {
+                displayRows = allValid;
+            } else if (playerPos > 0 && playerPos <= 8) {
                 displayRows = allValid.slice(0, 10);
             } else if (playerPos >= 9) {
                 const top3 = allValid.slice(0, 3);
+                let endPos = Math.min(playerPos + 3, allValid.length);
+                let startPos = endPos - 6;
+                if (startPos <= 3) {
+                    startPos = 4;
+                    endPos = 10;
+                }
                 const around = allValid.filter(x =>
-                    x.lap.m_carPosition >= playerPos - 3 &&
-                    x.lap.m_carPosition <= playerPos + 3
+                    x.lap.m_carPosition >= startPos &&
+                    x.lap.m_carPosition <= endPos
                 );
                 displayRows = [...top3, ...around];
             } else {
@@ -1102,7 +1172,11 @@
                 const lappedLaps = Math.floor(distToLeader / trackLen);
                 const lapped = lappedLaps > 0;
 
-                if (mode === 'INTERVAL_PLAYER') {
+                const now = Date.now();
+                if (driverLapDisplay[row.i] && driverLapDisplay[row.i].expireAt > now) {
+                    gapText = driverLapDisplay[row.i].text;
+                    gapClass = driverLapDisplay[row.i].isFastest ? 'lb-val fastest' : 'lb-val';
+                } else if (mode === 'INTERVAL_PLAYER') {
                     // Gap referenced to the player's car
                     if (isPlayer) {
                         gapText = '◆';
@@ -1145,15 +1219,6 @@
                             : (lap.m_deltaToCarInFrontInMS / 1000).toFixed(3));
                     }
 
-                } else if (mode === 'LAST_LAP') {
-                    gapText = formatMS(lap.m_lastLapTimeInMS);
-                    gapClass = 'lb-val';
-                    // purple if it's the session best lap
-                    if (row.i === sessionBestCarIdx && sessionBestLap < Infinity
-                        && lap.m_lastLapTimeInMS === sessionBestLap) {
-                        gapClass = 'lb-val fastest';
-                    }
-
                 } else if (mode === 'BEST_LAP') {
                     const best = carBestLap[row.i];
                     gapText = formatMS(best);
@@ -1162,13 +1227,14 @@
                 } else if (mode === 'TYRES') {
                     if (s) {
                         const tyre = tyreMap[s.m_visualTyreCompound];
-                        gapText = tyre ? `${tyre.short} ${s.m_tyresAgeLaps}L` : '--';
+                        gapText = tyre ? `${s.m_tyresAgeLaps} LAPS` : '--';
                     }
 
                 } else if (mode === 'ERS') {
                     if (s) {
                         const pct = Math.round((s.m_ersStoreEnergy / 4000000) * 100);
-                        gapText = pct + '%';
+                        const modeName = ersModes[s.m_ersDeployMode] || 'NONE';
+                        gapText = `${modeName} ${pct}%`;
                     }
                 }
 
@@ -1177,7 +1243,7 @@
                 if (s) {
                     const tyre = tyreMap[s.m_visualTyreCompound];
                     if (tyre && tyre.img) {
-                        tyreHtml = `<img src="${tyre.img}" style="width:16px;height:16px;object-fit:contain;flex-shrink:0;">`;
+                        tyreHtml = `<img src="${tyre.img}" style="width:26px;height:26px;object-fit:contain;flex-shrink:0;">`;
                     } else if (tyre) {
                         tyreHtml = `<span class="lb-tyre ${tyre.cls}">${tyre.short}</span>`;
                     }

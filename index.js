@@ -15,8 +15,11 @@ const state = {
     lapData: [],
     participants: [],
     carTelemetry: [],
-    carStatus: []
+    carStatus: [],
+    carDamage: []
 };
+
+let currentSessionUID = null;
 
 function broadcast(payload) {
     const message = JSON.stringify(payload);
@@ -151,10 +154,42 @@ function parseCarStatus(buffer) {
     return { m_carStatusData: status };
 }
 
+function parseCarDamage(buffer) {
+    const damage = [];
+    let offset = HEADER_SIZE;
+    const CAR_SIZE = 46;
+
+    for (let i = 0; i < MAX_CARS; i++) {
+        damage.push({
+            m_tyresWear: [
+                buffer.readFloatLE(offset + 0), // RL
+                buffer.readFloatLE(offset + 4), // RR
+                buffer.readFloatLE(offset + 8), // FL
+                buffer.readFloatLE(offset + 12) // FR
+            ]
+        });
+
+        offset += CAR_SIZE;
+    }
+
+    return { m_carDamageData: damage };
+}
+
 udp.on('message', (msg) => {
     try {
         const header = readHeader(msg);
         state.playerIdx = header.playerCarIndex;
+
+        if (currentSessionUID !== header.sessionUID) {
+            currentSessionUID = header.sessionUID;
+            state.lapData = [];
+            state.participants = [];
+            state.carTelemetry = [];
+            state.carStatus = [];
+            state.session = {};
+            state.carDamage = [];
+            broadcast({ type: 'RESET' });
+        }
 
         let payload = null;
 
@@ -204,6 +239,16 @@ udp.on('message', (msg) => {
                 state.carStatus = payload.m_carStatusData;
                 broadcast({
                     type: 'CAR_STATUS',
+                    data: payload,
+                    playerIdx: state.playerIdx
+                });
+                break;
+
+            case 10:
+                payload = parseCarDamage(msg);
+                state.carDamage = payload.m_carDamageData;
+                broadcast({
+                    type: 'CAR_DAMAGE',
                     data: payload,
                     playerIdx: state.playerIdx
                 });
