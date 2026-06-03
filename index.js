@@ -3,7 +3,6 @@ const WebSocket = require('ws');
 
 const UDP_PORT = 20777;
 const WS_PORT = 8080;
-const MAX_CARS = 22;
 const HEADER_SIZE = 29;
 
 const udp = dgram.createSocket('udp4');
@@ -15,6 +14,7 @@ const state = {
     lapData: [],
     participants: [],
     carTelemetry: [],
+    carTelemetry2: [],
     carStatus: [],
     carDamage: []
 };
@@ -60,14 +60,13 @@ function parseSession(buffer) {
     };
 }
 
-function parseLapData(buffer) {
+function parseLapData(buffer, format) {
     const cars = [];
     let offset = HEADER_SIZE;
     const CAR_SIZE = 57;
+    const maxCars = Math.floor((buffer.length - HEADER_SIZE) / CAR_SIZE);
 
-    for (let i = 0; i < MAX_CARS; i++) {
-        // Deltas: uint16 (ms part) + uint8 (minutes part)
-        // Total = minutesPart * 60000 + msPart
+    for (let i = 0; i < maxCars; i++) {
         const deltaFrontMS = buffer.readUInt16LE(offset + 14);
         const deltaFrontMin = buffer.readUInt8(offset + 16);
         const deltaLeaderMS = buffer.readUInt16LE(offset + 17);
@@ -90,16 +89,20 @@ function parseLapData(buffer) {
     return { m_lapData: cars };
 }
 
-function parseParticipants(buffer) {
+function parseParticipants(buffer, format) {
     const participants = [];
     let offset = HEADER_SIZE + 1; // numActiveCars
-    const CAR_SIZE = 57;
+    const is26 = format === 2026;
+    const CAR_SIZE = is26 ? 60 : 57;
+    const maxCars = Math.floor((buffer.length - (HEADER_SIZE + 1)) / CAR_SIZE);
 
-    for (let i = 0; i < MAX_CARS; i++) {
-        const nameBuffer = buffer.slice(offset + 7, offset + 39);
+    for (let i = 0; i < maxCars; i++) {
+        const teamOffset = is26 ? 5 : 3;
+        const nameOffset = is26 ? 10 : 7;
+        const nameBuffer = buffer.slice(offset + nameOffset, offset + nameOffset + 32);
 
         participants.push({
-            m_teamId: buffer.readUInt8(offset + 3),
+            m_teamId: is26 ? buffer.readUInt16LE(offset + teamOffset) : buffer.readUInt8(offset + teamOffset),
             m_name: nameBuffer.toString('utf8').replace(/\0/g, '').trim() || `CAR ${i + 1}`
         });
 
@@ -109,12 +112,14 @@ function parseParticipants(buffer) {
     return { m_participants: participants };
 }
 
-function parseTelemetry(buffer) {
+function parseTelemetry(buffer, format) {
     const telemetry = [];
     let offset = HEADER_SIZE;
-    const CAR_SIZE = 60;
+    const is26 = format === 2026;
+    const CAR_SIZE = is26 ? 59 : 60;
+    const maxCars = Math.floor((buffer.length - HEADER_SIZE) / CAR_SIZE);
 
-    for (let i = 0; i < MAX_CARS; i++) {
+    for (let i = 0; i < maxCars; i++) {
         telemetry.push({
             m_speed: buffer.readUInt16LE(offset + 0),
             m_throttle: buffer.readFloatLE(offset + 2),
@@ -124,7 +129,7 @@ function parseTelemetry(buffer) {
             m_engineRPM: buffer.readUInt16LE(offset + 16),
             m_drs: buffer.readUInt8(offset + 18),
             m_revLightsPercent: buffer.readUInt8(offset + 19),
-            m_tyresSurfaceTemperature: [
+            m_tyresInnerTemperature: [
                 buffer.readUInt8(offset + 34), // RL
                 buffer.readUInt8(offset + 35), // RR
                 buffer.readUInt8(offset + 36), // FL
@@ -138,12 +143,35 @@ function parseTelemetry(buffer) {
     return { m_carTelemetryData: telemetry };
 }
 
-function parseCarStatus(buffer) {
+function parseCarTelemetry2(buffer, format) {
+    const telemetry2 = [];
+    let offset = HEADER_SIZE;
+    const CAR_SIZE = 10;
+    const maxCars = Math.floor((buffer.length - HEADER_SIZE) / CAR_SIZE);
+
+    for (let i = 0; i < maxCars; i++) {
+        telemetry2.push({
+            m_activeAeroMode: buffer.readUInt8(offset + 0),
+            m_activeAeroAvailable: buffer.readUInt8(offset + 1),
+            m_overtakeAvailable: buffer.readUInt8(offset + 4),
+            m_overtakeActive: buffer.readUInt8(offset + 5),
+            m_2026Regulations: buffer.readUInt8(offset + 8),
+            m_drivingWrongWay: buffer.readUInt8(offset + 9)
+        });
+        offset += CAR_SIZE;
+    }
+
+    return { m_carTelemetry2Data: telemetry2 };
+}
+
+function parseCarStatus(buffer, format) {
     const status = [];
     let offset = HEADER_SIZE;
-    const CAR_SIZE = 55;
+    const is26 = format === 2026;
+    const CAR_SIZE = is26 ? 59 : 55;
+    const maxCars = Math.floor((buffer.length - HEADER_SIZE) / CAR_SIZE);
 
-    for (let i = 0; i < MAX_CARS; i++) {
+    for (let i = 0; i < maxCars; i++) {
         status.push({
             m_fuelInTank: buffer.readFloatLE(offset + 5),
             m_fuelCapacity: buffer.readFloatLE(offset + 9),
@@ -154,7 +182,7 @@ function parseCarStatus(buffer) {
             m_tyresAgeLaps: buffer.readUInt8(offset + 27),
             m_ersStoreEnergy: buffer.readFloatLE(offset + 37),
             m_ersDeployMode: buffer.readUInt8(offset + 41),
-            m_ersDeployedThisLap: buffer.readFloatLE(offset + 50)
+            m_ersDeployedThisLap: buffer.readFloatLE(is26 ? offset + 54 : offset + 50)
         });
 
         offset += CAR_SIZE;
@@ -163,12 +191,13 @@ function parseCarStatus(buffer) {
     return { m_carStatusData: status };
 }
 
-function parseCarDamage(buffer) {
+function parseCarDamage(buffer, format) {
     const damage = [];
     let offset = HEADER_SIZE;
     const CAR_SIZE = 46;
+    const maxCars = Math.floor((buffer.length - HEADER_SIZE) / CAR_SIZE);
 
-    for (let i = 0; i < MAX_CARS; i++) {
+    for (let i = 0; i < maxCars; i++) {
         damage.push({
             m_tyresWear: [
                 buffer.readFloatLE(offset + 0), // RL
@@ -184,16 +213,30 @@ function parseCarDamage(buffer) {
     return { m_carDamageData: damage };
 }
 
+let receivedPackets = new Set();
+let lastPacketBroadcast = 0;
+
 udp.on('message', (msg) => {
     try {
         const header = readHeader(msg);
         state.playerIdx = header.playerCarIndex;
+        
+        receivedPackets.add(header.packetId);
+        const now = Date.now();
+        if (now - lastPacketBroadcast > 2000) {
+            broadcast({ type: 'DEBUG_INFO', data: {
+                format: header.packetFormat,
+                packets: Array.from(receivedPackets)
+            }});
+            lastPacketBroadcast = now;
+        }
 
         if (currentSessionUID !== header.sessionUID) {
             currentSessionUID = header.sessionUID;
             state.lapData = [];
             state.participants = [];
             state.carTelemetry = [];
+            state.carTelemetry2 = [];
             state.carStatus = [];
             state.session = {};
             state.carDamage = [];
@@ -201,6 +244,7 @@ udp.on('message', (msg) => {
         }
 
         let payload = null;
+        const format = header.packetFormat;
 
         switch (header.packetId) {
             case 1:
@@ -214,7 +258,7 @@ udp.on('message', (msg) => {
                 break;
 
             case 2:
-                payload = parseLapData(msg);
+                payload = parseLapData(msg, format);
                 state.lapData = payload.m_lapData;
                 broadcast({
                     type: 'LAP_DATA',
@@ -224,7 +268,7 @@ udp.on('message', (msg) => {
                 break;
 
             case 4:
-                payload = parseParticipants(msg);
+                payload = parseParticipants(msg, format);
                 state.participants = payload.m_participants;
                 broadcast({
                     type: 'PARTICIPANTS',
@@ -234,7 +278,7 @@ udp.on('message', (msg) => {
                 break;
 
             case 6:
-                payload = parseTelemetry(msg);
+                payload = parseTelemetry(msg, format);
                 state.carTelemetry = payload.m_carTelemetryData;
                 broadcast({
                     type: 'TELEMETRY',
@@ -244,7 +288,7 @@ udp.on('message', (msg) => {
                 break;
 
             case 7:
-                payload = parseCarStatus(msg);
+                payload = parseCarStatus(msg, format);
                 state.carStatus = payload.m_carStatusData;
                 broadcast({
                     type: 'CAR_STATUS',
@@ -254,10 +298,20 @@ udp.on('message', (msg) => {
                 break;
 
             case 10:
-                payload = parseCarDamage(msg);
+                payload = parseCarDamage(msg, format);
                 state.carDamage = payload.m_carDamageData;
                 broadcast({
                     type: 'CAR_DAMAGE',
+                    data: payload,
+                    playerIdx: state.playerIdx
+                });
+                break;
+
+            case 16: // Car Telemetry 2
+                payload = parseCarTelemetry2(msg, format);
+                state.carTelemetry2 = payload.m_carTelemetry2Data;
+                broadcast({
+                    type: 'TELEMETRY2',
                     data: payload,
                     playerIdx: state.playerIdx
                 });

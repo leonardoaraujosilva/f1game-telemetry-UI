@@ -805,6 +805,7 @@
             lapData: [],
             carStatus: [],
             carTelemetry: [],
+            carTelemetry2: [],
             carDamage: [],
             session: {},
             playerIdx: 0
@@ -863,7 +864,7 @@
             194: 'var(--t-sauber)',
             220: 'var(--t-mercedes)', 221: 'var(--t-ferrari)', 222: 'var(--t-redbull)',
             223: 'var(--t-williams)', 224: 'var(--t-aston)', 225: 'var(--t-alpine)',
-            226: 'var(--t-rb)', 227: 'var(--t-mclaren)', 228: 'var(--t-haas)', 
+            226: 'var(--t-rb)', 227: 'var(--t-haas)', 228: 'var(--t-mclaren)', 
             229: '#F50537', 230: '#FFE600', 231: 'var(--t-sauber)'
         };
 
@@ -978,20 +979,31 @@
             224: 'resources/aston martin.png',
             225: 'resources/alpine.png',
             226: 'resources/racing bulls.png',
-            227: 'resources/mclaren.png',
-            228: 'resources/haas.png',
+            227: 'resources/haas.png',
+            228: 'resources/mclaren.png',
             229: 'resources/audi.png',
             230: 'resources/cadillac.png',
-            231: 'resources/sauber.png'
+            231: 'resources/sauber.png',
+            476: 'resources/mercedes.png',
+            477: 'resources/ferrari.png',
+            478: 'resources/redbull.png',
+            479: 'resources/williams.png',
+            480: 'resources/aston martin.png',
+            481: 'resources/alpine.png',
+            482: 'resources/racing bulls.png',
+            483: 'resources/haas.png',
+            484: 'resources/mclaren.png',
+            485: 'resources/audi.png',
+            486: 'resources/cadillac.png'
         };
 
         // Escala customizada para corrigir logos muito pequenos (base 1.2)
         const teamScale = {
-            7: 1.6, 120: 1.6, 192: 1.6, 228: 1.6, // Haas
-            6: 1.6, 119: 1.6, 191: 1.6, 226: 1.6, // Racing Bulls
+            7: 1.6, 120: 1.6, 192: 1.6, 227: 1.6, 483: 1.6, // Haas
+            6: 1.6, 119: 1.6, 191: 1.6, 226: 1.6, 482: 1.6, // Racing Bulls
             9: 1.6, 121: 1.6, 194: 1.6, 231: 1.6, // Sauber
-            8: 1.4, 104: 1.4, 193: 1.4, 227: 1.4, // McLaren
-            229: 1.4, 230: 1.4 // Audi, Cadillac
+            8: 1.4, 104: 1.4, 193: 1.4, 228: 1.4, 484: 1.4, // McLaren
+            229: 1.4, 230: 1.4, 485: 1.4, 486: 1.4 // Audi, Cadillac
         };
 
         // ─── LEADERBOARD SCHEDULER ─────────────────────────────────────────
@@ -1097,124 +1109,126 @@
                 state.playerIdx = msg.playerIdx;
             }
 
-            if (msg.type === 'RESET') {
-                state.lapData = [];
-                state.participants = [];
-                state.carTelemetry = [];
-                state.carStatus = [];
-                state.carDamage = [];
-                state.session = {};
-                
-                sessionBestLap = Infinity;
-                sessionBestCarIdx = -1;
-                lastLapNums = {};
-                carBestLap = {};
-                carPreviousBestLap = {};
-                driverLapDisplay = {};
-                initialFuel = 0;
-                
-                document.getElementById('lb-list').innerHTML = '';
-                document.getElementById('r-lap').innerText = '--';
-                document.getElementById('top-lap').innerText = '--/--';
-                document.getElementById('r-pos').innerText = '--';
-                document.getElementById('r-gap').innerText = '--';
-                document.getElementById('r-gap-who').innerText = '';
-                document.getElementById('r-interval').innerText = '--';
-                document.getElementById('r-interval-who').innerText = '';
-                
-                document.getElementById('r-delta').innerText = '--';
-                document.getElementById('r-delta').style.color = 'var(--text-main)';
-                document.getElementById('r-best-lap').innerText = '--:--.---';
-                
-                document.getElementById('b-thr').style.width = '0%';
-                document.getElementById('b-brk').style.width = '0%';
-                document.getElementById('b-ers').style.width = '0%';
-                document.getElementById('f-fill').style.width = '0%';
-                document.getElementById('t-speed').innerText = '0';
-                document.getElementById('t-gear').innerText = 'N';
-                document.getElementById('r-fuel').innerText = '--';
-                
-                refreshAll();
-                return;
-            }
+            switch(msg.type) {
+                case 'RESET':
+                    state.lapData = [];
+                    state.participants = [];
+                    state.carTelemetry = [];
+                    state.carTelemetry2 = [];
+                    state.carStatus = [];
+                    state.carDamage = [];
+                    state.session = {};
+                    
+                    sessionBestLap = Infinity;
+                    sessionBestCarIdx = -1;
+                    lastLapNums = {};
+                    carBestLap = {};
+                    carPreviousBestLap = {};
+                    driverLapDisplay = {};
+                    initialFuel = 0;
+                    
+                    document.getElementById('lb-list').innerHTML = '';
+                    document.getElementById('r-lap').innerText = '--';
+                    document.getElementById('top-lap').innerText = '--/--';
+                    document.getElementById('r-pos').innerText = '--';
+                    document.getElementById('r-gap').innerText = '--';
+                    document.getElementById('r-gap-who').innerText = '';
+                    document.getElementById('r-interval').innerText = '--';
+                    document.getElementById('r-interval-who').innerText = '';
+                    
+                    document.getElementById('r-delta').innerText = '--';
+                    document.getElementById('r-delta').style.color = 'var(--text-main)';
+                    document.getElementById('r-best-lap').innerText = '--:--.---';
+                    
+                    document.getElementById('b-thr').style.width = '0%';
+                    document.getElementById('b-brk').style.width = '0%';
+                    document.getElementById('b-ers').style.width = '0%';
+                    document.getElementById('f-fill').style.width = '0%';
+                    document.getElementById('t-speed').innerText = '0';
+                    document.getElementById('t-gear').innerText = 'N';
+                    document.getElementById('r-fuel').innerText = '--';
+                    
+                    refreshAll();
+                    return;
+                case 'FULL_STATE':
+                    state = msg.data;
+                    state.playerIdx = msg.playerIdx;
+                    refreshAll();
+                    return;
+                case 'SESSION':
+                    state.session = msg.data;
+                    break;
+                case 'PARTICIPANTS':
+                    state.participants = msg.data.m_participants;
+                    break;
+                case 'LAP_DATA':
+                    const now = Date.now();
+                    const prev = state.lapData;
+                    const next = msg.data.m_lapData;
 
-            if (msg.type === 'FULL_STATE') {
-                state = msg.data;
-                state.playerIdx = msg.playerIdx;
-                refreshAll();
-                return;
-            }
+                    let anyLapCompleted = false;
+                    if (prev && prev.length) {
+                        for (let i = 0; i < next.length; i++) {
+                            if (next[i] && prev[i] &&
+                                next[i].m_currentLapNum > (prev[i].m_currentLapNum || 0) &&
+                                next[i].m_lastLapTimeInMS > 0) {
 
-            if (msg.type === 'SESSION') {
-                state.session = msg.data;
-            }
+                                anyLapCompleted = true;
+                                const lt = next[i].m_lastLapTimeInMS;
+                                let isFastest = false;
 
-            if (msg.type === 'PARTICIPANTS') {
-                state.participants = msg.data.m_participants;
-            }
+                                // Update per-car best lap
+                                if (!carBestLap[i] || lt < carBestLap[i]) {
+                                    carPreviousBestLap[i] = carBestLap[i];
+                                    carBestLap[i] = lt;
+                                }
 
-            if (msg.type === 'LAP_DATA') {
-                const now = Date.now();
-                const prev = state.lapData;
-                const next = msg.data.m_lapData;
+                                // Update session best
+                                if (lt <= sessionBestLap) {
+                                    sessionBestLap = lt;
+                                    sessionBestCarIdx = i;
+                                    isFastest = true;
+                                } else if (lt === sessionBestLap && i === sessionBestCarIdx) {
+                                    isFastest = true;
+                                }
 
-                let anyLapCompleted = false;
-                if (prev && prev.length) {
-                    for (let i = 0; i < next.length; i++) {
-                        if (next[i] && prev[i] &&
-                            next[i].m_currentLapNum > (prev[i].m_currentLapNum || 0) &&
-                            next[i].m_lastLapTimeInMS > 0) {
+                                // Show individual lap time for 7 seconds
+                                driverLapDisplay[i] = {
+                                    text: formatMS(lt),
+                                    isFastest: isFastest,
+                                    expireAt: now + 7000
+                                };
 
-                            anyLapCompleted = true;
-                            const lt = next[i].m_lastLapTimeInMS;
-                            let isFastest = false;
-
-                            // Update per-car best lap
-                            if (!carBestLap[i] || lt < carBestLap[i]) {
-                                carPreviousBestLap[i] = carBestLap[i];
-                                carBestLap[i] = lt;
+                                // Clear it automatically after 7s to re-render
+                                setTimeout(() => {
+                                    renderLeaderboard();
+                                }, 7000);
                             }
-
-                            // Update session best
-                            if (lt <= sessionBestLap) {
-                                sessionBestLap = lt;
-                                sessionBestCarIdx = i;
-                                isFastest = true;
-                            } else if (lt === sessionBestLap && i === sessionBestCarIdx) {
-                                isFastest = true;
-                            }
-
-                            // Show individual lap time for 7 seconds
-                            driverLapDisplay[i] = {
-                                text: formatMS(lt),
-                                isFastest: isFastest,
-                                expireAt: now + 7000
-                            };
-
-                            // Clear it automatically after 7s to re-render
-                            setTimeout(() => {
-                                renderLeaderboard();
-                            }, 7000);
                         }
                     }
-                }
-                state.lapData = next;
-                if (anyLapCompleted) {
-                    requestAnimationFrame(renderLeaderboard);
-                }
-            }
-
-            if (msg.type === 'CAR_STATUS') {
-                state.carStatus = msg.data.m_carStatusData;
-            }
-
-            if (msg.type === 'TELEMETRY') {
-                state.carTelemetry = msg.data.m_carTelemetryData;
-                updateTelemetry(msg.data.m_carTelemetryData[state.playerIdx]);
-            }
-
-            if (msg.type === 'CAR_DAMAGE') {
-                state.carDamage = msg.data.m_carDamageData;
+                    state.lapData = next;
+                    if (anyLapCompleted) {
+                        requestAnimationFrame(renderLeaderboard);
+                    }
+                    break;
+                case 'CAR_STATUS':
+                    state.carStatus = msg.data.m_carStatusData;
+                    break;
+                case 'TELEMETRY':
+                    state.carTelemetry = msg.data.m_carTelemetryData;
+                    break;
+                case 'CAR_DAMAGE':
+                    state.carDamage = msg.data.m_carDamageData;
+                    break;
+                case 'TELEMETRY2':
+                    state.carTelemetry2 = msg.data.m_carTelemetry2Data;
+                    break;
+                case 'DEBUG_INFO':
+                    const deEl = document.getElementById('debug-drs');
+                    if (deEl) {
+                        deEl.innerText = `F:${msg.data.format} P:${msg.data.packets.join(',')}`;
+                    }
+                    return; // Do not refreshAll for debug info
             }
 
             refreshAll();
@@ -1267,7 +1281,7 @@
                 }
             }
 
-            const t = car.m_tyresSurfaceTemperature;
+            const t = car.m_tyresInnerTemperature;
             // RL RR FL FR
             document.getElementById('v-rl').innerText = t[0];
             document.getElementById('v-rr').innerText = t[1];
@@ -1374,25 +1388,52 @@
             const drsEl = document.getElementById('r-drs');
             const otEl = document.getElementById('r-ot');
             const telemetry = state.carTelemetry ? state.carTelemetry[pIdx] : null;
+            const telemetry2 = state.carTelemetry2 ? state.carTelemetry2[pIdx] : null;
 
             drsEl.style.fontSize = '22px'; // Default size
 
-            if (telemetry && telemetry.m_drs === 1) {
+            let isStraightMode = false;
+            let isStraightAvailable = false;
+            
+            if (telemetry2 && telemetry2.m_activeAeroMode === 1) {
+                isStraightMode = true;
+                isStraightAvailable = true;
+            } else if (telemetry2 && telemetry2.m_activeAeroAvailable === 1) {
+                isStraightAvailable = true;
+            } else if (telemetry) {
+                isStraightMode = telemetry.m_drs === 1 || telemetry.m_drs === 8 || telemetry.m_drs === 9 || telemetry.m_drs === 10 || telemetry.m_drs === 12;
+                isStraightAvailable = status && status.m_drsAllowed === 1;
+            }
+
+            if (isStraightMode) {
                 drsEl.innerText = 'ON';
                 drsEl.style.color = '#00ff00';
-                drsEl.style.fontSize = '22px';
+            } else if (isStraightAvailable) {
+                drsEl.innerText = 'AVAILABLE';
+                drsEl.style.color = '#FFD700'; // Yellow/Gold
+                drsEl.style.fontSize = '14px'; // Smaller text to fit
             } else {
                 drsEl.innerText = 'OFF';
                 drsEl.style.color = '#555';
-                drsEl.style.fontSize = '22px';
             }
             
             const debugEl = document.getElementById('debug-drs');
-            if (debugEl && telemetry && status) {
-                debugEl.innerText = `D:${telemetry.m_drs} A:${status.m_drsAllowed} E:${status.m_ersDeployMode} O:${telemetry.m_overtake !== undefined ? telemetry.m_overtake : 'u'}`;
+            if (debugEl) {
+                debugEl.innerText = '';
             }
 
-            if (telemetry && (telemetry.m_overtake === 1 || telemetry.m_overtake === true)) {
+            let isOvertake = false;
+            if (telemetry2 && telemetry2.m_overtakeActive === 1) {
+                isOvertake = true;
+            } else if (telemetry && (telemetry.m_overtake === 1 || telemetry.m_overtake === true)) {
+                isOvertake = true;
+            } else if (status && status.m_ersDeployMode === 4) {
+                isOvertake = true;
+            } else if (telemetry && (telemetry.m_drs === 10 || telemetry.m_drs === 12 || telemetry.m_drs === 24)) {
+                isOvertake = true;
+            }
+
+            if (isOvertake) {
                 if (otEl) {
                     otEl.innerText = 'OVERTAKE: ON';
                     otEl.style.background = '#36E5FF';
@@ -1620,16 +1661,25 @@
 
                 const shortName = extractShortName(p?.m_name);
 
-                const hasOvertake = (state.carTelemetry && state.carTelemetry[row.i] && (state.carTelemetry[row.i].m_overtake === 1 || state.carTelemetry[row.i].m_overtake === true));
-                const otHtml = hasOvertake ? `<div style="font-size:10px; font-weight:900; color:#36E5FF; margin-left:4px; margin-right:4px;">OT</div>` : '';
+                let hasOvertake = false;
+                if (state.carTelemetry2 && state.carTelemetry2[row.i] && state.carTelemetry2[row.i].m_overtakeActive === 1) {
+                    hasOvertake = true;
+                } else if (state.carTelemetry && state.carTelemetry[row.i] && (state.carTelemetry[row.i].m_overtake === 1 || state.carTelemetry[row.i].m_overtake === true)) {
+                    hasOvertake = true;
+                } else if (state.carStatus && state.carStatus[row.i] && state.carStatus[row.i].m_ersDeployMode === 4) {
+                    hasOvertake = true;
+                } else if (state.carTelemetry && state.carTelemetry[row.i] && (state.carTelemetry[row.i].m_drs === 10 || state.carTelemetry[row.i].m_drs === 12 || state.carTelemetry[row.i].m_drs === 24)) {
+                    hasOvertake = true;
+                }
+                const otHtml = `<div style="width:20px; display:flex; justify-content:center; align-items:center; flex-shrink:0;">${hasOvertake ? `<div style="background:#36E5FF; color:#fff; padding:2px 4px; font-size:9px; font-weight:900; border-radius:2px;">OT</div>` : ''}</div>`;
 
                 return `
                 <div class="lb-row ${isPlayer ? 'player' : ''}">
                     <div class="lb-pos">${lap.m_carPosition}</div>
                     ${teamHtml}
                     <div class="lb-name">${shortName}</div>
-                    ${tyreHtml}
                     ${otHtml}
+                    ${tyreHtml}
                     <div class="${gapClass}">${gapText}</div>
                 </div>`;
             }).join('');
