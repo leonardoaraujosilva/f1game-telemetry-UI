@@ -457,7 +457,7 @@
         .ers-mode-NONE { background: rgba(255, 255, 255, 0.08); color: #999; }
         .ers-mode-MEDIUM { background: #ffd700; color: #000; font-weight: bold; }
         .ers-mode-HOTLAP { background: var(--f1-red); color: #fff; font-weight: bold; }
-        .ers-mode-BOOST { background: #8800ff; color: #fff; font-weight: bold; }
+        .ers-mode-OVERTAKE { background: #8800ff; color: #fff; font-weight: bold; }
 
         .ers-bar-row {
             display: flex;
@@ -608,10 +608,8 @@
                         <div class="w-sub" id="r-tyre-age" style="margin-top:-2px;">-- LAPS</div>
                     </div>
                     <div class="widget-box">
-                        <div class="w-label">MODO RETA</div>
+                        <div class="w-label">DRS</div>
                         <div class="w-val" id="r-drs" style="color:#555">OFF</div>
-                        <div class="w-sub" id="r-ot" style="margin-top:4px; font-size:9px; font-weight:800; color:#999; text-align:center; background: rgba(255, 255, 255, 0.08); border-radius: 2px; padding: 2px 6px; display: inline-block;">OVERTAKE: OFF</div>
-                        <div id="debug-drs" style="font-size:8px; color:#ffaa00; margin-top:2px;"></div>
                     </div>
                 </div>
                 <!-- Row 2: DELTA | GAP FRONT | GAP BEHIND -->
@@ -739,6 +737,13 @@
                     </div>
                     <span class="ers-pct" id="ers-pct">0%</span>
                 </div>
+                <div class="ers-bar-row">
+                    <span class="ers-bar-label">LAP</span>
+                    <div class="t-bar-bg" style="height:5px;">
+                        <div id="b-ers-lap" class="t-bar-fill" style="background:#00ff00"></div>
+                    </div>
+                    <span class="ers-pct" id="ers-lap-pct">0%</span>
+                </div>
             </div>
             <div class="t-bar-row" style="margin-bottom:-5px;">
                 <span style="font-size:12px; width:32px; text-align:left; color:var(--text-dim);">THR</span>
@@ -815,7 +820,6 @@
         let sessionBestCarIdx = -1;
         let lastLapNums = {};
         let carBestLap = {}; // per-car best lap time in ms
-        let carPreviousBestLap = {}; // to calculate delta when a new best lap is set
         let driverLapDisplay = {}; // { carIdx: { text: string, isFastest: boolean, expireAt: number } }
 
         const trackNames = {
@@ -845,8 +849,7 @@
             32: { name: 'LOSAIL', country: 'QATAR', code: 'qa' },
             39: { name: 'SILVERSTONE R', country: 'UK', code: 'gb' },
             40: { name: 'AUSTRIA R', country: 'AUSTRIA', code: 'at' },
-            41: { name: 'ZANDVOORT R', country: 'NETHERLANDS', code: 'nl' },
-            42: { name: 'MADRING', country: 'SPAIN', code: 'es' }
+            41: { name: 'ZANDVOORT R', country: 'NETHERLANDS', code: 'nl' }
         };
 
         // Team mapping based on common F1 UDP Team IDs
@@ -860,14 +863,10 @@
             185: 'var(--t-mercedes)', 186: 'var(--t-ferrari)', 187: 'var(--t-redbull)',
             188: 'var(--t-williams)', 189: 'var(--t-aston)', 190: 'var(--t-alpine)',
             191: 'var(--t-rb)', 192: 'var(--t-haas)', 193: 'var(--t-mclaren)',
-            194: 'var(--t-sauber)',
-            220: 'var(--t-mercedes)', 221: 'var(--t-ferrari)', 222: 'var(--t-redbull)',
-            223: 'var(--t-williams)', 224: 'var(--t-aston)', 225: 'var(--t-alpine)',
-            226: 'var(--t-rb)', 227: 'var(--t-mclaren)', 228: 'var(--t-haas)', 
-            229: '#F50537', 230: '#FFE600', 231: 'var(--t-sauber)'
+            194: 'var(--t-sauber)'
         };
 
-        const ersModes = ['NONE', 'MEDIUM', 'HOTLAP', 'BOOST'];
+        const ersModes = ['NONE', 'MEDIUM', 'HOTLAP', 'OVERTAKE'];
 
         const tyreMap = {
             16: { short: 'S', cls: 't-S', img: 'resources/tyre-s.png' },
@@ -918,35 +917,18 @@
             31: [16, 17, 18],  // Las Vegas: S=C5, M=C4, H=C3
             32: [18, 19, 20],  // Losail: S=C3, M=C2, H=C1
             14: [16, 17, 18],  // Abu Dhabi: S=C5, M=C4, H=C3
-            42: [17, 18, 19],  // Madrid: S=C4, M=C3, H=C2
         };
 
-        function getTyreColor(temp, actualCompound) {
-            const defaultTempRange = { min: 75, max: 105, name: `C${actualCompound}` };
+        // Fallback when we don't know the compound
+        const defaultTempRange = { min: 75, max: 105, name: '??' };
+
+        function getTyreTemp(temp, actualCompound) {
             const range = tyreTempRanges[actualCompound] || defaultTempRange;
+            if (temp < range.min) return 't-cold';
+            if (temp > range.max) return 't-superhot';
             const mid = (range.min + range.max) / 2;
-            const size = (range.max - range.min) / 2;
-
-            if (temp <= range.min - size) return 'rgb(0, 136, 255)'; // Blue
-            if (temp >= range.max + size) return 'rgb(255, 0, 0)'; // Red
-
-            if (temp < mid) {
-                const ratio = Math.max(0, Math.min(1, (temp - (range.min - size)) / (mid - (range.min - size))));
-                const g = Math.round(136 + (255 - 136) * ratio);
-                const b = Math.round(255 - 255 * ratio);
-                return `rgb(0, ${g}, ${b})`;
-            } else {
-                if (temp <= range.max) {
-                    const ratio = Math.max(0, Math.min(1, (temp - mid) / (range.max - mid)));
-                    const r = Math.round(255 * ratio);
-                    const g = Math.round(255 - (255 - 215) * ratio);
-                    return `rgb(${r}, ${g}, 0)`;
-                } else {
-                    const ratio = Math.max(0, Math.min(1, (temp - range.max) / size));
-                    const g = Math.round(215 - 215 * ratio);
-                    return `rgb(255, ${g}, 0)`;
-                }
-            }
+            if (temp > mid + (range.max - mid) * 0.5) return 't-hot';
+            return 't-ideal';
         }
 
         const teamLogos = {
@@ -970,28 +952,15 @@
             191: 'resources/racing bulls.png',
             192: 'resources/haas.png',
             193: 'resources/mclaren.png',
-            194: 'resources/sauber.png',
-            220: 'resources/mercedes.png',
-            221: 'resources/ferrari.png',
-            222: 'resources/redbull.png',
-            223: 'resources/williams.png',
-            224: 'resources/aston martin.png',
-            225: 'resources/alpine.png',
-            226: 'resources/racing bulls.png',
-            227: 'resources/mclaren.png',
-            228: 'resources/haas.png',
-            229: 'resources/audi.png',
-            230: 'resources/cadillac.png',
-            231: 'resources/sauber.png'
+            194: 'resources/sauber.png'
         };
 
         // Escala customizada para corrigir logos muito pequenos (base 1.2)
         const teamScale = {
-            7: 1.6, 120: 1.6, 192: 1.6, 228: 1.6, // Haas
-            6: 1.6, 119: 1.6, 191: 1.6, 226: 1.6, // Racing Bulls
-            9: 1.6, 121: 1.6, 194: 1.6, 231: 1.6, // Sauber
-            8: 1.4, 104: 1.4, 193: 1.4, 227: 1.4, // McLaren
-            229: 1.4, 230: 1.4 // Audi, Cadillac
+            7: 1.6, 120: 1.6, 192: 1.6, // Haas
+            6: 1.6, 119: 1.6, 191: 1.6, // Racing Bulls
+            9: 1.6, 121: 1.6, 194: 1.6, // Sauber
+            8: 1.4, 104: 1.4, 193: 1.4  // McLaren
         };
 
         // ─── LEADERBOARD SCHEDULER ─────────────────────────────────────────
@@ -1109,7 +1078,6 @@
                 sessionBestCarIdx = -1;
                 lastLapNums = {};
                 carBestLap = {};
-                carPreviousBestLap = {};
                 driverLapDisplay = {};
                 initialFuel = 0;
                 
@@ -1129,6 +1097,7 @@
                 document.getElementById('b-thr').style.width = '0%';
                 document.getElementById('b-brk').style.width = '0%';
                 document.getElementById('b-ers').style.width = '0%';
+                document.getElementById('b-ers-lap').style.width = '0%';
                 document.getElementById('f-fill').style.width = '0%';
                 document.getElementById('t-speed').innerText = '0';
                 document.getElementById('t-gear').innerText = 'N';
@@ -1171,7 +1140,6 @@
 
                             // Update per-car best lap
                             if (!carBestLap[i] || lt < carBestLap[i]) {
-                                carPreviousBestLap[i] = carBestLap[i];
                                 carBestLap[i] = lt;
                             }
 
@@ -1243,6 +1211,10 @@
                 document.getElementById('b-ers').style.width = ers + '%';
                 document.getElementById('ers-pct').innerText = Math.round(ers) + '%';
 
+                const ersLap = Math.max(0, 100 - (ersStatus.m_ersDeployedThisLap / 4000000) * 100);
+                document.getElementById('b-ers-lap').style.width = ersLap + '%';
+                document.getElementById('ers-lap-pct').innerText = Math.round(ersLap) + '%';
+
                 const modeName = ersModes[ersStatus.m_ersDeployMode] || 'NONE';
                 const ersBadge = document.getElementById('ers-mode');
                 ersBadge.innerText = modeName;
@@ -1297,9 +1269,7 @@
                 const dot = document.getElementById('dot-' + w);
                 if (!dot) return;
                 dot.classList.remove('t-cold', 't-ideal', 't-hot', 't-superhot');
-                const color = getTyreColor(temp, actualCompound);
-                dot.style.background = color;
-                dot.style.boxShadow = `0 0 6px ${color}`;
+                dot.classList.add(getTyreTemp(temp, actualCompound));
             });
             
             const wear = state.carDamage && state.carDamage[state.playerIdx] ? state.carDamage[state.playerIdx].m_tyresWear : [0,0,0,0];
@@ -1333,15 +1303,8 @@
             if (bestLapMs && lastLapMs > 0) {
                 document.getElementById('r-best-lap').innerText = formatMS(bestLapMs);
                 if (lastLapMs === bestLapMs) {
-                    const prevBest = carPreviousBestLap[pIdx];
-                    if (prevBest) {
-                        const diff = prevBest - lastLapMs;
-                        document.getElementById('r-delta').innerText = '-' + (diff / 1000).toFixed(3);
-                        document.getElementById('r-delta').style.color = '#00ff00';
-                    } else {
-                        document.getElementById('r-delta').innerText = '-0.000';
-                        document.getElementById('r-delta').style.color = '#00ff00';
-                    }
+                    document.getElementById('r-delta').innerText = 'BEST';
+                    document.getElementById('r-delta').style.color = 'var(--purple-fastest)';
                 } else {
                     const diff = lastLapMs - bestLapMs;
                     document.getElementById('r-delta').innerText = '+' + (diff / 1000).toFixed(3);
@@ -1358,7 +1321,7 @@
             document.getElementById('r-pos').innerText = 'P' + lap.m_carPosition;
 
             const trackInfo = trackNames[session.m_trackId];
-            document.getElementById('r-track').innerText = trackInfo ? trackInfo.name : `TRACK ID: ${session.m_trackId}`;
+            document.getElementById('r-track').innerText = trackInfo ? trackInfo.name : 'UNKNOWN';
             const flagEl = document.getElementById('r-flag');
             if (flagEl) flagEl.className = trackInfo ? `fi fi-${trackInfo.code}` : 'fi';
 
@@ -1372,7 +1335,6 @@
                 ((status.m_fuelInTank / initialFuel) * 100) + '%';
 
             const drsEl = document.getElementById('r-drs');
-            const otEl = document.getElementById('r-ot');
             const telemetry = state.carTelemetry ? state.carTelemetry[pIdx] : null;
 
             drsEl.style.fontSize = '22px'; // Default size
@@ -1381,29 +1343,17 @@
                 drsEl.innerText = 'ON';
                 drsEl.style.color = '#00ff00';
                 drsEl.style.fontSize = '22px';
+            } else if (status.m_drsAllowed) {
+                drsEl.innerText = 'AVAILABLE';
+                drsEl.style.color = 'var(--purple-fastest)';
+                drsEl.style.fontSize = '13px';
+            } else if (status.m_drsActivationDistance > 0) {
+                drsEl.innerText = 'DRS ZONE';
+                drsEl.style.color = '#ffd700';
+                drsEl.style.fontSize = '13px';
             } else {
                 drsEl.innerText = 'OFF';
                 drsEl.style.color = '#555';
-                drsEl.style.fontSize = '22px';
-            }
-            
-            const debugEl = document.getElementById('debug-drs');
-            if (debugEl && telemetry && status) {
-                debugEl.innerText = `D:${telemetry.m_drs} A:${status.m_drsAllowed} E:${status.m_ersDeployMode} O:${telemetry.m_overtake !== undefined ? telemetry.m_overtake : 'u'}`;
-            }
-
-            if (telemetry && (telemetry.m_overtake === 1 || telemetry.m_overtake === true)) {
-                if (otEl) {
-                    otEl.innerText = 'OVERTAKE: ON';
-                    otEl.style.background = '#36E5FF';
-                    otEl.style.color = '#000';
-                }
-            } else {
-                if (otEl) {
-                    otEl.innerText = 'OVERTAKE: OFF';
-                    otEl.style.background = 'rgba(255, 255, 255, 0.08)';
-                    otEl.style.color = '#999';
-                }
             }
 
             const tyre = tyreMap[status.m_visualTyreCompound];
@@ -1418,19 +1368,14 @@
             // Update compound table based on current track
             const trackId = session.m_trackId;
             const compounds = trackCompounds[trackId];
-            const labels = ['soft', 'med', 'hard'];
             if (compounds) {
+                const labels = ['soft', 'med', 'hard'];
                 compounds.forEach((actualC, i) => {
-                    const info = tyreTempRanges[actualC] || { min: 75, max: 105, name: `C${actualC}` };
+                    const info = tyreTempRanges[actualC] || defaultTempRange;
                     const nameEl = document.getElementById(`c-${labels[i]}-name`);
                     const rangeEl = document.getElementById(`c-${labels[i]}-range`);
                     if (nameEl) nameEl.innerText = info.name;
                     if (rangeEl) rangeEl.innerText = `${info.min}°–${info.max}°`;
-                });
-            } else {
-                labels.forEach(l => {
-                    const nameEl = document.getElementById(`c-${l}-name`);
-                    if (nameEl) nameEl.innerText = `T${trackId}`;
                 });
             }
 
@@ -1444,11 +1389,13 @@
                 document.getElementById('r-gap-who').innerText = extractShortName(aheadP?.m_name);
                 if (aheadRow) {
                     const gapMs = lap.m_deltaToCarInFrontInMS;
-                    // Ignore invalid gap 65535 (0xFFFF)
-                    if (gapMs > 0 && gapMs < 65000) {
+                    // Sanity check: if the parsed delta seems too large (>120s), fall back to distance diff
+                    if (gapMs > 0 && gapMs < 120000) {
                         document.getElementById('r-gap').innerText = '+' + (gapMs / 1000).toFixed(3);
                     } else {
-                        document.getElementById('r-gap').innerText = '--';
+                        // Estimate from total distance
+                        const distDiff = aheadRow.m_totalDistance - lap.m_totalDistance;
+                        document.getElementById('r-gap').innerText = distDiff >= 0 ? ('+' + distDiff.toFixed(0) + 'm') : '--';
                     }
                 } else {
                     document.getElementById('r-gap').innerText = '--';
@@ -1464,10 +1411,11 @@
                 const behindP = behindIdx >= 0 ? state.participants[behindIdx] : null;
                 document.getElementById('r-interval-who').innerText = extractShortName(behindP?.m_name);
                 const gapMs = behindRow.m_deltaToCarInFrontInMS;
-                if (gapMs > 0 && gapMs < 65000) {
+                if (gapMs > 0 && gapMs < 120000) {
                     document.getElementById('r-interval').innerText = '+' + (gapMs / 1000).toFixed(3);
                 } else {
-                    document.getElementById('r-interval').innerText = '--';
+                    const distDiff = lap.m_totalDistance - behindRow.m_totalDistance;
+                    document.getElementById('r-interval').innerText = distDiff >= 0 ? ('+' + distDiff.toFixed(0) + 'm') : '--';
                 }
             }
         }
@@ -1620,16 +1568,12 @@
 
                 const shortName = extractShortName(p?.m_name);
 
-                const hasOvertake = (state.carTelemetry && state.carTelemetry[row.i] && (state.carTelemetry[row.i].m_overtake === 1 || state.carTelemetry[row.i].m_overtake === true));
-                const otHtml = hasOvertake ? `<div style="font-size:10px; font-weight:900; color:#36E5FF; margin-left:4px; margin-right:4px;">OT</div>` : '';
-
                 return `
                 <div class="lb-row ${isPlayer ? 'player' : ''}">
                     <div class="lb-pos">${lap.m_carPosition}</div>
                     ${teamHtml}
                     <div class="lb-name">${shortName}</div>
                     ${tyreHtml}
-                    ${otHtml}
                     <div class="${gapClass}">${gapText}</div>
                 </div>`;
             }).join('');
