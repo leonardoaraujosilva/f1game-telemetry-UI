@@ -1346,17 +1346,27 @@
             }
 
             const bestLapMs = carBestLap[pIdx];
-            const lastLapMs = lap.m_lastLapTimeInMS;
-            if (bestLapMs && lastLapMs > 0) {
+            const currentLapMs = lap.m_currentLapTimeInMS;
+            if (bestLapMs && currentLapMs > 0) {
+                // Live delta: compare current lap time vs personal best (like steering wheel)
                 document.getElementById('r-best-lap').innerText = formatMS(bestLapMs);
-                if (lastLapMs === bestLapMs) {
-                    document.getElementById('r-delta').innerText = 'BEST';
-                    document.getElementById('r-delta').style.color = 'var(--purple-fastest)';
+                const diff = currentLapMs - bestLapMs;
+                const deltaEl = document.getElementById('r-delta');
+                if (diff < 0) {
+                    deltaEl.innerText = (diff / 1000).toFixed(3);
+                    deltaEl.style.color = '#00e676'; // green - faster than best
+                } else if (diff === 0) {
+                    deltaEl.innerText = '+0.000';
+                    deltaEl.style.color = '#00e676';
                 } else {
-                    const diff = lastLapMs - bestLapMs;
-                    document.getElementById('r-delta').innerText = '+' + (diff / 1000).toFixed(3);
-                    document.getElementById('r-delta').style.color = 'var(--f1-red)';
+                    deltaEl.innerText = '+' + (diff / 1000).toFixed(3);
+                    deltaEl.style.color = 'var(--f1-red)'; // red - slower than best
                 }
+            } else if (bestLapMs) {
+                // Best exists but current lap just started
+                document.getElementById('r-best-lap').innerText = formatMS(bestLapMs);
+                document.getElementById('r-delta').innerText = '--';
+                document.getElementById('r-delta').style.color = 'var(--text-main)';
             } else {
                 document.getElementById('r-delta').innerText = '--';
                 document.getElementById('r-delta').style.color = 'var(--text-main)';

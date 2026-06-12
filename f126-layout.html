@@ -1338,24 +1338,27 @@
             }
 
             const bestLapMs = carBestLap[pIdx];
-            const lastLapMs = lap.m_lastLapTimeInMS;
-            if (bestLapMs && lastLapMs > 0) {
+            const currentLapMs = lap.m_currentLapTimeInMS;
+            if (bestLapMs && currentLapMs > 0) {
+                // Live delta: compare current lap time vs personal best (like steering wheel)
                 document.getElementById('r-best-lap').innerText = formatMS(bestLapMs);
-                if (lastLapMs === bestLapMs) {
-                    const prevBest = carPreviousBestLap[pIdx];
-                    if (prevBest) {
-                        const diff = prevBest - lastLapMs;
-                        document.getElementById('r-delta').innerText = '-' + (diff / 1000).toFixed(3);
-                        document.getElementById('r-delta').style.color = '#00ff00';
-                    } else {
-                        document.getElementById('r-delta').innerText = '-0.000';
-                        document.getElementById('r-delta').style.color = '#00ff00';
-                    }
+                const diff = currentLapMs - bestLapMs;
+                const deltaEl = document.getElementById('r-delta');
+                if (diff < 0) {
+                    deltaEl.innerText = (diff / 1000).toFixed(3);
+                    deltaEl.style.color = '#00e676'; // green - faster than best
+                } else if (diff === 0) {
+                    deltaEl.innerText = '+0.000';
+                    deltaEl.style.color = '#00e676';
                 } else {
-                    const diff = lastLapMs - bestLapMs;
-                    document.getElementById('r-delta').innerText = '+' + (diff / 1000).toFixed(3);
-                    document.getElementById('r-delta').style.color = 'var(--f1-red)';
+                    deltaEl.innerText = '+' + (diff / 1000).toFixed(3);
+                    deltaEl.style.color = 'var(--f1-red)'; // red - slower than best
                 }
+            } else if (bestLapMs) {
+                // Best exists but current lap just started
+                document.getElementById('r-best-lap').innerText = formatMS(bestLapMs);
+                document.getElementById('r-delta').innerText = '--';
+                document.getElementById('r-delta').style.color = 'var(--text-main)';
             } else {
                 document.getElementById('r-delta').innerText = '--';
                 document.getElementById('r-delta').style.color = 'var(--text-main)';
@@ -1426,14 +1429,16 @@
             if (isOvertake) {
                 if (otEl) {
                     otEl.innerText = 'OVERTAKE: ON';
-                    otEl.style.background = '#36E5FF';
-                    otEl.style.color = '#000';
+                    otEl.style.background = 'rgba(232, 160, 32, 0.25)';
+                    otEl.style.color = '#E8A020';
+                    otEl.style.border = '1px solid rgba(232, 160, 32, 0.5)';
                 }
             } else {
                 if (otEl) {
                     otEl.innerText = 'OVERTAKE: OFF';
-                    otEl.style.background = 'rgba(255, 255, 255, 0.08)';
-                    otEl.style.color = '#999';
+                    otEl.style.background = 'rgba(255, 255, 255, 0.06)';
+                    otEl.style.color = '#666';
+                    otEl.style.border = '1px solid transparent';
                 }
             }
 
@@ -1661,7 +1666,7 @@
                 } else if (state.carTelemetry && state.carTelemetry[row.i] && (state.carTelemetry[row.i].m_drs === 10 || state.carTelemetry[row.i].m_drs === 12 || state.carTelemetry[row.i].m_drs === 24)) {
                     hasOvertake = true;
                 }
-                const otHtml = `<div style="width:20px; display:flex; justify-content:center; align-items:center; flex-shrink:0;">${hasOvertake ? `<div style="background:#36E5FF; color:#fff; padding:2px 4px; font-size:9px; font-weight:900; border-radius:2px;">OT</div>` : ''}</div>`;
+                const otHtml = `<div style="width:20px; display:flex; justify-content:center; align-items:center; flex-shrink:0;">${hasOvertake ? `<div style="background:rgba(232,160,32,0.2); color:#E8A020; border:1px solid rgba(232,160,32,0.5); padding:2px 4px; font-size:9px; font-weight:900; border-radius:2px; letter-spacing:0.02em;">OT</div>` : ''}</div>`;
 
                 return `
                 <div class="lb-row ${isPlayer ? 'player' : ''}">
