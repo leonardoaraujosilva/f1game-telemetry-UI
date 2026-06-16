@@ -618,7 +618,7 @@
                     <div class="widget-box">
                         <div class="w-label">DELTA</div>
                         <div class="w-val" id="r-delta" style="font-size:20px;">--</div>
-                        <div class="w-sub" id="r-best-lap" style="color:var(--text-dim); margin-top:0px;">--:--.---</div>
+                        <div class="w-sub" id="r-best-lap" style="color:#ddd; margin-top:2px; font-size:16px; font-weight: 600;">--:--.---</div>
                     </div>
                     <div class="widget-box">
                         <div class="w-label">GAP FRENTE</div>
@@ -810,12 +810,16 @@
             playerIdx: 0
         };
 
+        let currentSessionCompounds = { soft: null, med: null, hard: null };
         let initialFuel = 0;
         let sessionBestLap = Infinity;
         let sessionBestCarIdx = -1;
         let lastLapNums = {};
         let carBestLap = {}; // per-car best lap time in ms
         let carPreviousBestLap = {}; // to calculate delta when a new best lap is set
+        let playerBestLapHistory = []; // Array of {d: distance, t: time} for player's best lap
+        let currentLapHistory = [];    // Ongoing tracking for player's current lap
+
         let driverLapDisplay = {}; // { carIdx: { text: string, isFastest: boolean, expireAt: number } }
 
         const trackNames = {
@@ -878,20 +882,18 @@
         };
 
         // Tyre temp ranges by actual compound (m_actualTyreCompound)
-        // actualTyreCompound values from spec: C5=16, C4=17, C3=18, C2=19, C1=20, C6=21
+        // actualTyreCompound values from spec: C5=16, C4=17, C3=18, C2=19, C1=20
         const tyreTempRanges = {
-            16: { min: 70, max: 90,  name: 'C5' },  // C5
-            17: { min: 75, max: 100, name: 'C4' },  // C4
-            18: { min: 80, max: 105, name: 'C3' },  // C3
-            19: { min: 85, max: 115, name: 'C2' },  // C2
-            20: { min: 90, max: 115, name: 'C1' },  // C1
-            21: { min: 65, max: 85,  name: 'C6' },  // C6
-            7:  { min: 60, max: 80,  name: 'INT' }, // Intermediate
-            8:  { min: 50, max: 70,  name: 'WET' }, // Wet
+            16: { min: 75, max: 115, name: 'C5' }, // C5: 100% entre 75°C-105°C
+            17: { min: 75, max: 105, name: 'C4' }, // C4: 100% entre 75°C-95°C
+            18: { min: 75, max: 95,  name: 'C3' }, // C3: 100% entre 75°C-95°C
+            19: { min: 85, max: 95,  name: 'C2' }, // C2: 100% em 95°C
+            20: { min: 85, max: 105, name: 'C1' }, // C1: 100% entre 95°C-105°C
+            7:  { min: 65, max: 75,  name: 'INT' }, // INT: 100% entre 65°C-75°C
+            8:  { min: 55, max: 65,  name: 'WET' }, // WET: 100% em 65°C
         };
 
         // Per-track compound allocation: [soft, medium, hard] as m_actualTyreCompound values
-        // C1=20, C2=19, C3=18, C4=17, C5=16, C6=21
         // Source: 2025 F1 season official allocations
         const trackCompounds = {
             0:  [16, 17, 18],  // Melbourne: S=C5, M=C4, H=C3
@@ -900,20 +902,20 @@
             3:  [18, 19, 20],  // Sakhir: S=C3, M=C2, H=C1
             29: [16, 17, 18],  // Jeddah: S=C5, M=C4, H=C3
             30: [16, 17, 18],  // Miami: S=C5, M=C4, H=C3
-            27: [21, 16, 17],  // Imola: S=C6, M=C5, H=C4
-            5:  [21, 16, 17],  // Monaco: S=C6, M=C5, H=C4
+            27: [16, 17, 18],  // Imola: S=C5, M=C4, H=C3
+            5:  [16, 17, 18],  // Monaco: S=C5, M=C4, H=C3
             4:  [18, 19, 20],  // Catalunya: S=C3, M=C2, H=C1
-            6:  [21, 16, 17],  // Montreal: S=C6, M=C5, H=C4
+            6:  [16, 17, 18],  // Montreal: S=C5, M=C4, H=C3
             17: [16, 17, 18],  // Austria: S=C5, M=C4, H=C3
             7:  [17, 18, 19],  // Silverstone: S=C4, M=C3, H=C2
-            10: [17, 18, 20],  // Spa: S=C4, M=C3, H=C1 (skips C2)
+            10: [17, 18, 20],  // Spa: S=C4, M=C3, H=C1
             9:  [16, 17, 18],  // Hungaroring: S=C5, M=C4, H=C3
             26: [17, 18, 19],  // Zandvoort: S=C4, M=C3, H=C2
             11: [16, 17, 18],  // Monza: S=C5, M=C4, H=C3
-            20: [21, 16, 17],  // Baku: S=C6, M=C5, H=C4
+            20: [16, 17, 18],  // Baku: S=C5, M=C4, H=C3
             12: [16, 17, 18],  // Singapore: S=C5, M=C4, H=C3
-            15: [17, 18, 20],  // Austin: S=C4, M=C3, H=C1 (skips C2)
-            19: [16, 17, 19],  // Mexico: S=C5, M=C4, H=C2 (skips C3)
+            15: [17, 18, 20],  // Austin: S=C4, M=C3, H=C1
+            19: [16, 17, 18],  // Mexico: S=C5, M=C4, H=C3
             16: [17, 18, 19],  // Brazil: S=C4, M=C3, H=C2
             31: [16, 17, 18],  // Las Vegas: S=C5, M=C4, H=C3
             32: [18, 19, 20],  // Losail: S=C3, M=C2, H=C1
@@ -1101,6 +1103,28 @@
 
         connect();
 
+        const discoveredTracks = {};
+
+        function mapCurrentTrackCompounds(state) {
+            if (!state.session || !state.tyreSets) return;
+            
+            const trackId = state.session.m_trackId;
+            const sets = state.tyreSets.m_tyreSetData;
+            
+            if (trackId !== undefined && sets && !discoveredTracks[trackId]) {
+                const actuals = sets
+                    .filter(s => s.m_visualTyreCompound >= 16 && s.m_visualTyreCompound <= 18)
+                    .map(s => s.m_actualTyreCompound);
+                    
+                const uniqueActuals = [...new Set(actuals)].sort((a, b) => a - b);
+                
+                if (uniqueActuals.length > 0) {
+                    discoveredTracks[trackId] = uniqueActuals;
+                    console.log("TrackCompounds:", JSON.stringify(discoveredTracks));
+                }
+            }
+        }
+
         function handleMessage(event) {
             const msg = JSON.parse(event.data);
 
@@ -1124,10 +1148,11 @@
                     carBestLap = {};
                     carPreviousBestLap = {};
                     driverLapDisplay = {};
+                    playerBestLapHistory = [];
+                    currentLapHistory = [];
                     initialFuel = 0;
                     
                     document.getElementById('lb-list').innerHTML = '';
-                    document.getElementById('r-lap').innerText = '--';
                     document.getElementById('top-lap').innerText = '--/--';
                     document.getElementById('r-pos').innerText = '--';
                     document.getElementById('r-gap').innerText = '--';
@@ -1157,6 +1182,9 @@
                 case 'SESSION':
                     state.session = msg.data;
                     break;
+                case 'TYRE_SETS':
+                    state.tyreSets = msg.data;
+                    break;
                 case 'PARTICIPANTS':
                     state.participants = msg.data.m_participants;
                     break;
@@ -1180,6 +1208,9 @@
                                 if (!carBestLap[i] || lt < carBestLap[i]) {
                                     carPreviousBestLap[i] = carBestLap[i];
                                     carBestLap[i] = lt;
+                                    if (i === state.playerIdx) {
+                                        playerBestLapHistory = [...currentLapHistory];
+                                    }
                                 }
 
                                 // Update session best
@@ -1205,7 +1236,39 @@
                             }
                         }
                     }
+
+                    // Record telemetry points for player delta calculation
+                    const pIdx = state.playerIdx;
+                    if (next[pIdx]) {
+                        const pLap = next[pIdx];
+                        const pPrev = prev ? prev[pIdx] : null;
+                        
+                        if (pPrev && pLap.m_currentLapNum > pPrev.m_currentLapNum) {
+                            currentLapHistory = []; // Reset on new lap
+                        }
+                        
+                        if (pLap.m_currentLapTimeInMS > 0 && pLap.m_lapDistance >= 0) {
+                            if (currentLapHistory.length > 0) {
+                                const lastPoint = currentLapHistory[currentLapHistory.length - 1];
+                                if (pLap.m_currentLapTimeInMS < lastPoint.t || pLap.m_lapDistance < lastPoint.d - 10) {
+                                    // Flashback detected! Drop points ahead of current position
+                                    currentLapHistory = currentLapHistory.filter(p => p.d <= pLap.m_lapDistance);
+                                }
+                            }
+                            
+                            if (currentLapHistory.length === 0 || (pLap.m_lapDistance - currentLapHistory[currentLapHistory.length - 1].d) > 2) {
+                                currentLapHistory.push({
+                                    d: pLap.m_lapDistance,
+                                    t: pLap.m_currentLapTimeInMS
+                                });
+                            }
+                        } else if (pLap.m_currentLapTimeInMS === 0) {
+                            currentLapHistory = [];
+                        }
+                    }
+                    
                     state.lapData = next;
+                    
                     if (anyLapCompleted) {
                         requestAnimationFrame(renderLeaderboard);
                     }
@@ -1338,27 +1401,48 @@
             }
 
             const bestLapMs = carBestLap[pIdx];
-            const currentLapMs = lap.m_currentLapTimeInMS;
-            if (bestLapMs && currentLapMs > 0) {
-                // Live delta: compare current lap time vs personal best (like steering wheel)
+            if (bestLapMs) {
                 document.getElementById('r-best-lap').innerText = formatMS(bestLapMs);
-                const diff = currentLapMs - bestLapMs;
-                const deltaEl = document.getElementById('r-delta');
-                if (diff < 0) {
-                    deltaEl.innerText = (diff / 1000).toFixed(3);
-                    deltaEl.style.color = '#00e676'; // green - faster than best
-                } else if (diff === 0) {
-                    deltaEl.innerText = '+0.000';
-                    deltaEl.style.color = '#00e676';
-                } else {
-                    deltaEl.innerText = '+' + (diff / 1000).toFixed(3);
-                    deltaEl.style.color = 'var(--f1-red)'; // red - slower than best
+                
+                let liveDelta = null;
+                if (playerBestLapHistory.length > 0 && lap.m_lapDistance >= 0) {
+                    let d = lap.m_lapDistance;
+                    let p1 = null, p2 = null;
+                    for (let i = playerBestLapHistory.length - 1; i >= 0; i--) {
+                        if (playerBestLapHistory[i].d <= d) {
+                            p1 = playerBestLapHistory[i];
+                            if (i + 1 < playerBestLapHistory.length) {
+                                p2 = playerBestLapHistory[i + 1];
+                            }
+                            break;
+                        }
+                    }
+                    if (p1) {
+                        let bestTimeAtDistance = p1.t;
+                        if (p2 && p2.d > p1.d) {
+                            const ratio = (d - p1.d) / (p2.d - p1.d);
+                            bestTimeAtDistance = p1.t + (p2.t - p1.t) * ratio;
+                        }
+                        liveDelta = lap.m_currentLapTimeInMS - bestTimeAtDistance;
+                    }
                 }
-            } else if (bestLapMs) {
-                // Best exists but current lap just started
-                document.getElementById('r-best-lap').innerText = formatMS(bestLapMs);
-                document.getElementById('r-delta').innerText = '--';
-                document.getElementById('r-delta').style.color = 'var(--text-main)';
+
+                if (liveDelta !== null) {
+                    const deltaEl = document.getElementById('r-delta');
+                    if (liveDelta < 0) {
+                        deltaEl.innerText = (liveDelta / 1000).toFixed(3);
+                        deltaEl.style.color = '#00e676';
+                    } else if (liveDelta === 0) {
+                        deltaEl.innerText = '+0.000';
+                        deltaEl.style.color = '#00e676';
+                    } else {
+                        deltaEl.innerText = '+' + (liveDelta / 1000).toFixed(3);
+                        deltaEl.style.color = 'var(--f1-red)';
+                    }
+                } else {
+                    document.getElementById('r-delta').innerText = '--';
+                    document.getElementById('r-delta').style.color = 'var(--text-main)';
+                }
             } else {
                 document.getElementById('r-delta').innerText = '--';
                 document.getElementById('r-delta').style.color = 'var(--text-main)';

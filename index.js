@@ -77,6 +77,7 @@ function parseLapData(buffer, format) {
             m_currentLapTimeInMS: buffer.readUInt32LE(offset + 4),
             m_deltaToCarInFrontInMS: (deltaFrontMin * 60000) + deltaFrontMS,
             m_deltaToRaceLeaderInMS: (deltaLeaderMin * 60000) + deltaLeaderMS,
+            m_lapDistance: buffer.readFloatLE(offset + 20),
             m_totalDistance: buffer.readFloatLE(offset + 24),
             m_carPosition: buffer.readUInt8(offset + 32),
             m_currentLapNum: buffer.readUInt8(offset + 33),
@@ -189,6 +190,27 @@ function parseCarStatus(buffer, format) {
     }
 
     return { m_carStatusData: status };
+}
+
+function parseTyreSets(msg, format) {
+    const buffer = msg;
+    const HEADER_SIZE = 29;
+    const carIdx = buffer.readUInt8(HEADER_SIZE);
+    
+    // TyreSetData is 9 bytes. There are 20 tyre sets.
+    const fittedIdxOffset = HEADER_SIZE + 1 + (20 * 9);
+    const fittedIdx = buffer.readUInt8(fittedIdxOffset);
+    
+    let lapDeltaTime = 0;
+    if (fittedIdx < 20) {
+        const fittedOffset = HEADER_SIZE + 1 + (fittedIdx * 9);
+        lapDeltaTime = buffer.readInt16LE(fittedOffset + 7);
+    }
+    
+    return {
+        m_carIdx: carIdx,
+        m_lapDeltaTime: lapDeltaTime
+    };
 }
 
 function parseCarDamage(buffer, format) {
@@ -304,6 +326,17 @@ udp.on('message', (msg) => {
                 broadcast({
                     type: 'CAR_DAMAGE',
                     data: payload,
+                    playerIdx: state.playerIdx
+                });
+                break;
+
+            case 12: // Tyre Sets
+                payload = parseTyreSets(msg, format);
+                if (!state.tyreSets) state.tyreSets = {};
+                state.tyreSets[payload.m_carIdx] = payload;
+                broadcast({
+                    type: 'TYRE_SETS',
+                    data: state.tyreSets,
                     playerIdx: state.playerIdx
                 });
                 break;
