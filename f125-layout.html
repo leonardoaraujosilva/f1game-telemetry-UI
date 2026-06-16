@@ -931,26 +931,40 @@
         function getTyreColor(temp, actualCompound) {
             const defaultTempRange = { min: 75, max: 105, name: `C${actualCompound}` };
             const range = tyreTempRanges[actualCompound] || defaultTempRange;
-            const mid = (range.min + range.max) / 2;
-            const size = (range.max - range.min) / 2;
+            
+            const fadeCold = 25; // Degrade de 25 graus abaixo do minimo (ex: 60 até 85)
+            const fadeHot = 15;  // Degrade de 15 graus acima do maximo (ex: 105 até 120)
 
-            if (temp <= range.min - size) return 'rgb(0, 136, 255)'; // Blue
-            if (temp >= range.max + size) return 'rgb(255, 0, 0)'; // Red
+            if (temp <= range.min - fadeCold) return 'rgb(0, 136, 255)'; // Blue
+            if (temp >= range.max + fadeHot) return 'rgb(255, 0, 0)'; // Red
 
-            if (temp < mid) {
-                const ratio = Math.max(0, Math.min(1, (temp - (range.min - size)) / (mid - (range.min - size))));
-                const g = Math.round(136 + (255 - 136) * ratio);
-                const b = Math.round(255 - 255 * ratio);
-                return `rgb(0, ${g}, ${b})`;
-            } else {
-                if (temp <= range.max) {
-                    const ratio = Math.max(0, Math.min(1, (temp - mid) / (range.max - mid)));
-                    const r = Math.round(255 * ratio);
-                    const g = Math.round(255 - (255 - 215) * ratio);
-                    return `rgb(${r}, ${g}, 0)`;
+            if (temp < range.min) {
+                // Fade from Blue (0, 136, 255) to Cyan (0, 255, 255) to Green (0, 255, 0)
+                const ratio = Math.max(0, Math.min(1, (temp - (range.min - fadeCold)) / fadeCold));
+                if (ratio < 0.5) {
+                    const ratio2 = ratio * 2;
+                    const g = Math.round(136 + (255 - 136) * ratio2);
+                    return `rgb(0, ${g}, 255)`;
                 } else {
-                    const ratio = Math.max(0, Math.min(1, (temp - range.max) / size));
-                    const g = Math.round(215 - 215 * ratio);
+                    const ratio2 = (ratio - 0.5) * 2;
+                    const b = Math.round(255 - 255 * ratio2);
+                    return `rgb(0, 255, ${b})`;
+                }
+            } else if (temp <= range.max) {
+                // Entire optimal window is green
+                return 'rgb(0, 255, 0)';
+            } else {
+                // Fade from Green (0, 255, 0) to Yellow (255, 255, 0) to Red (255, 0, 0)
+                const ratio = Math.max(0, Math.min(1, (temp - range.max) / fadeHot));
+                
+                // Atinge o amarelo rapidamente (nos primeiros 15% do degradê, aprox. 2.25 graus)
+                if (ratio < 0.15) {
+                    const ratio2 = ratio / 0.15;
+                    const r = Math.round(255 * ratio2);
+                    return `rgb(${r}, 255, 0)`;
+                } else {
+                    const ratio2 = (ratio - 0.15) / 0.85;
+                    const g = Math.round(255 - 255 * ratio2);
                     return `rgb(255, ${g}, 0)`;
                 }
             }
