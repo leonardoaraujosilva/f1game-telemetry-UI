@@ -266,7 +266,10 @@ udp.on('message', (msg) => {
         }
 
         let payload = null;
-        const format = header.packetFormat;
+        let format = header.packetFormat;
+        if (header.gameYear === 26) {
+            format = 2026;
+        }
         state.format = format; // Store the current format in state for UI layout selection
 
         switch (header.packetId) {

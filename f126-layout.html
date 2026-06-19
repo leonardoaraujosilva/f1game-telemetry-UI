@@ -1518,10 +1518,6 @@
                 isOvertake = true;
             } else if (telemetry && (telemetry.m_overtake === 1 || telemetry.m_overtake === true)) {
                 isOvertake = true;
-            } else if (status && status.m_ersDeployMode === 4) {
-                isOvertake = true;
-            } else if (telemetry && (telemetry.m_drs === 10 || telemetry.m_drs === 12 || telemetry.m_drs === 24)) {
-                isOvertake = true;
             }
 
             if (isOvertake) {
@@ -1758,10 +1754,6 @@
                 if (state.carTelemetry2 && state.carTelemetry2[row.i] && state.carTelemetry2[row.i].m_overtakeActive === 1) {
                     hasOvertake = true;
                 } else if (state.carTelemetry && state.carTelemetry[row.i] && (state.carTelemetry[row.i].m_overtake === 1 || state.carTelemetry[row.i].m_overtake === true)) {
-                    hasOvertake = true;
-                } else if (state.carStatus && state.carStatus[row.i] && state.carStatus[row.i].m_ersDeployMode === 4) {
-                    hasOvertake = true;
-                } else if (state.carTelemetry && state.carTelemetry[row.i] && (state.carTelemetry[row.i].m_drs === 10 || state.carTelemetry[row.i].m_drs === 12 || state.carTelemetry[row.i].m_drs === 24)) {
                     hasOvertake = true;
                 }
                 const otHtml = `<div style="width:20px; display:flex; justify-content:center; align-items:center; flex-shrink:0;">${hasOvertake ? `<div style="background:rgba(232,160,32,0.2); color:#E8A020; border:1px solid rgba(232,160,32,0.5); padding:2px 4px; font-size:9px; font-weight:900; border-radius:2px; letter-spacing:0.02em;">OT</div>` : ''}</div>`;
