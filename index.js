@@ -72,11 +72,26 @@ function parseLapData(buffer, format) {
         const deltaLeaderMS = buffer.readUInt16LE(offset + 17);
         const deltaLeaderMin = buffer.readUInt8(offset + 19);
 
+        let deltaFront = -1;
+        if (deltaFrontMS < 60000) {
+            deltaFront = (deltaFrontMin * 60000) + deltaFrontMS;
+        } else if (deltaFrontMS !== 65535 && deltaFrontMS > 60000) {
+            // Negative underflow (e.g. 65526 = -10ms) during overtakes
+            deltaFront = 0;
+        }
+
+        let deltaLeader = -1;
+        if (deltaLeaderMS < 60000) {
+            deltaLeader = (deltaLeaderMin * 60000) + deltaLeaderMS;
+        } else if (deltaLeaderMS !== 65535 && deltaLeaderMS > 60000) {
+            deltaLeader = 0;
+        }
+
         cars.push({
             m_lastLapTimeInMS: buffer.readUInt32LE(offset + 0),
             m_currentLapTimeInMS: buffer.readUInt32LE(offset + 4),
-            m_deltaToCarInFrontInMS: (deltaFrontMin * 60000) + deltaFrontMS,
-            m_deltaToRaceLeaderInMS: (deltaLeaderMin * 60000) + deltaLeaderMS,
+            m_deltaToCarInFrontInMS: deltaFront,
+            m_deltaToRaceLeaderInMS: deltaLeader,
             m_lapDistance: buffer.readFloatLE(offset + 20),
             m_totalDistance: buffer.readFloatLE(offset + 24),
             m_carPosition: buffer.readUInt8(offset + 32),

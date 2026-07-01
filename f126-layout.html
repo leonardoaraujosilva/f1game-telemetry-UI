@@ -159,6 +159,10 @@
             padding-left: 3px;
         }
 
+        .lb-row.dnf {
+            opacity: 0.5;
+        }
+
         .lb-row.divider {
             height: 8px;
             justify-content: center;
@@ -1568,24 +1572,28 @@
                 document.getElementById('r-gap').innerText = 'LEAD';
                 document.getElementById('r-gap-who').innerText = '';
             } else {
-                const aheadRow = state.lapData.find(x => x.m_carPosition === lap.m_carPosition - 1);
+                const activeCars = state.lapData.filter(x => x.m_carPosition > 0 && x.m_resultStatus < 4).sort((a, b) => a.m_carPosition - b.m_carPosition);
+                const myRank = activeCars.findIndex(x => x === lap);
+                const aheadRow = myRank > 0 ? activeCars[myRank - 1] : null;
                 const aheadIdx = aheadRow ? state.lapData.indexOf(aheadRow) : -1;
                 const aheadP = aheadIdx >= 0 ? state.participants[aheadIdx] : null;
                 document.getElementById('r-gap-who').innerText = extractShortName(aheadP?.m_name);
                 if (aheadRow) {
                     const gapMs = lap.m_deltaToCarInFrontInMS;
-                    // Ignore invalid gap 65535 (0xFFFF)
-                    if (gapMs > 0 && gapMs < 65000) {
-                        document.getElementById('r-gap').innerText = '+' + (gapMs / 1000).toFixed(3);
+                    if (gapMs >= 0) {
+                        document.getElementById('r-gap').innerText = '-' + (gapMs / 1000).toFixed(3);
                     } else {
-                        document.getElementById('r-gap').innerText = '--';
+                        const distDiff = aheadRow.m_totalDistance - lap.m_totalDistance;
+                        document.getElementById('r-gap').innerText = distDiff >= 0 ? ('-' + distDiff.toFixed(0) + 'm') : '--';
                     }
                 } else {
                     document.getElementById('r-gap').innerText = '--';
                 }
             }
 
-            const behindRow = state.lapData.find(x => x.m_carPosition === lap.m_carPosition + 1);
+            const activeCars = state.lapData.filter(x => x.m_carPosition > 0 && x.m_resultStatus < 4).sort((a, b) => a.m_carPosition - b.m_carPosition);
+            const myRank = activeCars.findIndex(x => x === lap);
+            const behindRow = myRank >= 0 && myRank < activeCars.length - 1 ? activeCars[myRank + 1] : null;
             if (!behindRow) {
                 document.getElementById('r-interval').innerText = '--';
                 document.getElementById('r-interval-who').innerText = '';
@@ -1594,10 +1602,11 @@
                 const behindP = behindIdx >= 0 ? state.participants[behindIdx] : null;
                 document.getElementById('r-interval-who').innerText = extractShortName(behindP?.m_name);
                 const gapMs = behindRow.m_deltaToCarInFrontInMS;
-                if (gapMs > 0 && gapMs < 65000) {
+                if (gapMs >= 0) {
                     document.getElementById('r-interval').innerText = '+' + (gapMs / 1000).toFixed(3);
                 } else {
-                    document.getElementById('r-interval').innerText = '--';
+                    const distDiff = lap.m_totalDistance - behindRow.m_totalDistance;
+                    document.getElementById('r-interval').innerText = distDiff >= 0 ? ('+' + distDiff.toFixed(0) + 'm') : '--';
                 }
             }
         }
@@ -1647,6 +1656,7 @@
                 const s = state.carStatus[row.i];
                 const lap = row.lap;
                 const isPlayer = row.i === pIdx;
+                const isDnf = lap.m_resultStatus >= 4;
 
                 // ── Value per mode ───────────────────────────────────────
                 const mode = lbCurrent.mode;
@@ -1663,7 +1673,10 @@
                 const lapped = lappedLaps > 0;
 
                 const now = Date.now();
-                if (driverLapDisplay[row.i] && driverLapDisplay[row.i].expireAt > now) {
+                if (isDnf && mode !== 'BEST_LAP') {
+                    gapText = lap.m_resultStatus === 5 ? 'DSQ' : 'DNF';
+                    gapClass = 'lb-val';
+                } else if (driverLapDisplay[row.i] && driverLapDisplay[row.i].expireAt > now) {
                     gapText = driverLapDisplay[row.i].text;
                     gapClass = driverLapDisplay[row.i].isFastest ? 'lb-val fastest' : 'lb-val';
                 } else if (mode === 'INTERVAL_PLAYER') {
@@ -1685,12 +1698,12 @@
                                 gapClass = 'lb-val lapped';
                             } else {
                                 const gapMs = lap.m_deltaToRaceLeaderInMS - playerLap.m_deltaToRaceLeaderInMS;
-                                if (gapMs > 0) {
+                                if (gapMs >= 0 && lap.m_deltaToRaceLeaderInMS >= 0 && playerLap.m_deltaToRaceLeaderInMS >= 0) {
                                     gapText = '+' + (gapMs / 1000).toFixed(3);
-                                } else if (gapMs < 0) {
+                                } else if (gapMs < 0 && lap.m_deltaToRaceLeaderInMS >= 0 && playerLap.m_deltaToRaceLeaderInMS >= 0) {
                                     gapText = '-' + (Math.abs(gapMs) / 1000).toFixed(3);
                                 } else {
-                                    gapText = '-';
+                                    gapText = '-.---';
                                 }
                             }
                         }
@@ -1704,9 +1717,15 @@
                         gapText = `+${lappedLaps} LAP${lappedLaps > 1 ? 'S' : ''}`;
                         gapClass = 'lb-val lapped';
                     } else {
-                        gapText = '+' + (lap.m_deltaToRaceLeaderInMS > 0
-                            ? (lap.m_deltaToRaceLeaderInMS / 1000).toFixed(3)
-                            : (lap.m_deltaToCarInFrontInMS / 1000).toFixed(3));
+                        const gapFront = lap.m_deltaToCarInFrontInMS;
+                        const gapLead = lap.m_deltaToRaceLeaderInMS;
+                        if (gapLead >= 0) {
+                            gapText = '+' + (gapLead / 1000).toFixed(3);
+                        } else if (gapFront >= 0) {
+                            gapText = '+' + (gapFront / 1000).toFixed(3);
+                        } else {
+                            gapText = '-.---';
+                        }
                     }
 
                 } else if (mode === 'BEST_LAP') {
@@ -1715,13 +1734,13 @@
                     gapClass = row.i === sessionBestCarIdx ? 'lb-val fastest' : 'lb-val';
 
                 } else if (mode === 'TYRES') {
-                    if (s) {
+                    if (!isDnf && s) {
                         const tyre = tyreMap[s.m_visualTyreCompound];
                         gapText = tyre ? `${s.m_tyresAgeLaps} LAPS` : '--';
                     }
 
                 } else if (mode === 'ERS') {
-                    if (s) {
+                    if (!isDnf && s) {
                         const pct = Math.round((s.m_ersStoreEnergy / 4000000) * 100);
                         const modeName = ersModes[s.m_ersDeployMode] || 'NONE';
                         gapText = `<span class="ers-mode-badge ers-mode-${modeName}" style="margin-left:0; margin-right:4px;">${modeName}</span> ${pct}%`;
@@ -1729,15 +1748,12 @@
                 }
 
                 // Tyre icon
-                let tyreHtml = '';
-                if (s) {
+                let tyreHtml = (!isDnf && s) ? (function() {
                     const tyre = tyreMap[s.m_visualTyreCompound];
-                    if (tyre && tyre.img) {
-                        tyreHtml = `<img src="${tyre.img}" style="width:26px;height:26px;object-fit:contain;flex-shrink:0;">`;
-                    } else if (tyre) {
-                        tyreHtml = `<span class="lb-tyre ${tyre.cls}">${tyre.short}</span>`;
-                    }
-                }
+                    if (tyre && tyre.img) return `<img src="${tyre.img}" style="width:26px;height:26px;object-fit:contain;flex-shrink:0;">`;
+                    if (tyre) return `<span class="lb-tyre ${tyre.cls}">${tyre.short}</span>`;
+                    return '';
+                })() : '<div style="width:20px;"></div>';
 
                 // Team logo
                 let tId = p ? p.m_teamId : undefined;
@@ -1758,8 +1774,10 @@
                 }
                 const otHtml = `<div style="width:20px; display:flex; justify-content:center; align-items:center; flex-shrink:0;">${hasOvertake ? `<div style="background:rgba(232,160,32,0.2); color:#E8A020; border:1px solid rgba(232,160,32,0.5); padding:2px 4px; font-size:9px; font-weight:900; border-radius:2px; letter-spacing:0.02em;">OT</div>` : ''}</div>`;
 
+                const rowClassNames = `lb-row ${isPlayer ? 'player' : ''} ${isDnf ? 'dnf' : ''}`;
+
                 return `
-                <div class="lb-row ${isPlayer ? 'player' : ''}">
+                <div class="${rowClassNames}">
                     <div class="lb-pos">${lap.m_carPosition}</div>
                     ${teamHtml}
                     <div class="lb-name">${shortName}</div>
