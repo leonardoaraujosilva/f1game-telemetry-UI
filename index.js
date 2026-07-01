@@ -281,9 +281,10 @@ udp.on('message', (msg) => {
         }
 
         let payload = null;
-        let format = header.packetFormat;
-        if (header.gameYear === 26) {
-            format = 2026;
+        let format = 2026; // Default to 2026 layout
+        // Only use 2025 layout if both packetFormat and gameYear indicate F1 25
+        if (header.packetFormat === 2025 && header.gameYear === 25) {
+            format = 2025;
         }
         state.format = format; // Store the current format in state for UI layout selection
 
